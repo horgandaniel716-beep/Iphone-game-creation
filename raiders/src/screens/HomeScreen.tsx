@@ -5,6 +5,8 @@ import { auth } from '../lib/firebase';
 import { useGameStore } from '../store/gameStore';
 import { getCharacter } from '../lib/characters';
 import { getRankInfo, getRankDisplayString } from '../lib/ranking';
+import { detectBuildVariant, MOVE_TYPES, MOVE_TYPE_MAP } from '../lib/moveTypes';
+import { getTrinketById, TRINKET_RARITY_COLORS } from '../lib/trinkets';
 
 const RARITY_COLOR = {
   common: '#888',
@@ -12,24 +14,6 @@ const RARITY_COLOR = {
   epic: '#b44aff',
   legendary: '#ff9000',
 };
-
-// Build variant detection based on unlocked moves
-const BUILD_VARIANTS = [
-  { id: 'street_brawler',  name: 'STREET BRAWLER',  desc: 'Raw power, no tricks',       color: '#e74c3c', keys: ['heavy_slam','jab','low_kick'],          req: 3  },
-  { id: 'combo_artist',    name: 'COMBO ARTIST',     desc: 'Chains that never end',       color: '#e8c84a', keys: ['jab','combo_chain'],                    req: 2  },
-  { id: 'speedster',       name: 'SPEEDSTER',        desc: 'Blink and you miss it',       color: '#4fc3f7', keys: ['low_kick'],                             req: 1  },
-  { id: 'iron_wall',       name: 'IRON WALL',        desc: 'You don\'t break this',       color: '#95a5a6', keys: [],                                       req: 0  },
-  { id: 'ghost',           name: 'PHANTOM',          desc: 'There, then gone',            color: '#ce93d8', keys: [],                                       req: 0  },
-  { id: 'berserker',       name: 'BERSERKER',        desc: 'No defense needed',           color: '#ff4400', keys: [],                                       req: 0  },
-];
-
-function detectVariant(unlockedMoves: string[], wins: number, losses: number) {
-  if (wins >= 50) return { name: 'GOD TIER', desc: 'Untouchable', color: '#ff9000' };
-  if (wins >= 20 && losses < 5) return { name: 'CLEAN DEMON', desc: 'Perfect form', color: '#b44aff' };
-  if (unlockedMoves.length >= 15) return BUILD_VARIANTS[1]; // combo artist
-  if (unlockedMoves.length >= 8) return BUILD_VARIANTS[0];  // street brawler
-  return { name: 'ROOKIE', desc: 'Just getting started', color: '#555' };
-}
 
 // Mock social feed
 const MOCK_FEED = [
@@ -52,7 +36,8 @@ export default function HomeScreen() {
   const rankDisplay = rank ? getRankDisplayString(rank) : '🥉 Bronze 4';
   const totalGames = fighter.wins + fighter.losses;
   const winRate = totalGames > 0 ? Math.round((fighter.wins / totalGames) * 100) : 0;
-  const variant = detectVariant(fighter.unlockedMoves ?? [], fighter.wins, fighter.losses);
+  const variantRaw = detectBuildVariant(fighter.unlockedMoves ?? [], fighter.wins);
+  const variant = { name: variantRaw.name, desc: variantRaw.subtitle, color: variantRaw.color };
   const isFamous = fighter.wins >= 10;
 
   return (
@@ -110,7 +95,16 @@ export default function HomeScreen() {
               <Text style={[styles.rarityText, { color: char.accentColor }]}>{char.rarity?.toUpperCase()}</Text>
             </View>
           </View>
-          <Text style={styles.charSubtitle}>{char.subtitle}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <Text style={styles.charSubtitle}>{char.subtitle}</Text>
+            {fighter.bodySize && (
+              <View style={{ backgroundColor: '#1e1e2e', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
+                <Text style={{ color: '#555', fontSize: 8, fontWeight: '800', letterSpacing: 1 }}>
+                  {fighter.bodySize === 'runt' ? '🐀 RUNT' : fighter.bodySize === 'brute' ? '🦍 BRUTE' : '⚖️ STANDARD'}
+                </Text>
+              </View>
+            )}
+          </View>
           <View style={styles.levelRow}>
             <Text style={styles.levelText}>LVL {fighter.level}</Text>
             <View style={styles.xpBarBg}>
@@ -149,6 +143,31 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      {/* ── TRINKETS ────────────────────────────────────────── */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>TRINKETS</Text>
+        <View style={styles.weaponRow}>
+          {[fighter.trinket1, fighter.trinket2].map((tid, i) => {
+            const t = tid ? getTrinketById(tid) : null;
+            const rc = t ? TRINKET_RARITY_COLORS[t.rarity] : '#2a2a3a';
+            return (
+              <View key={i} style={[styles.weaponSlot, { borderColor: rc + '55' }]}>
+                <Text style={styles.weaponSlotLabel}>SLOT {i + 1}</Text>
+                {t ? (
+                  <>
+                    <Text style={{ fontSize: 20 }}>{t.icon}</Text>
+                    <Text style={[styles.weaponSlotName, { color: rc }]}>{t.name}</Text>
+                    <Text style={[styles.weaponSlotLabel, { marginTop: 2 }]} numberOfLines={2}>{t.effect}</Text>
+                  </>
+                ) : (
+                  <Text style={styles.weaponSlotEmpty}>EMPTY</Text>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      </View>
+
       {/* ── SIGNATURE MOVES ─────────────────────────────────── */}
       <View style={[styles.section, { borderColor: char.primaryColor + '22' }]}>
         <Text style={styles.sectionTitle}>SIGNATURE MOVES</Text>
@@ -173,12 +192,41 @@ export default function HomeScreen() {
       {/* ── UNLOCKED MOVES ──────────────────────────────────── */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>MOVES UNLOCKED ({fighter.unlockedMoves?.length ?? 2})</Text>
-        <View style={styles.movesGrid}>
-          {(fighter.unlockedMoves ?? ['jab', 'low_kick']).slice(0, 8).map((moveId) => (
-            <View key={moveId} style={styles.movePill}>
-              <Text style={styles.movePillText}>{moveId.replace(/_/g, ' ').toUpperCase()}</Text>
+        {/* Type breakdown */}
+        {(() => {
+          const moves = fighter.unlockedMoves ?? ['jab', 'low_kick'];
+          const typeCounts: Record<string, number> = {};
+          for (const m of moves) {
+            const t = MOVE_TYPE_MAP[m];
+            if (t) typeCounts[t] = (typeCounts[t] ?? 0) + 1;
+          }
+          const sorted = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+          if (!sorted.length) return null;
+          return (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+              {sorted.map(([type, count]) => {
+                const info = MOVE_TYPES[type as keyof typeof MOVE_TYPES];
+                return (
+                  <View key={type} style={[styles.movePill, { backgroundColor: info.color + '22', borderColor: info.color + '55' }]}>
+                    <Text style={{ fontSize: 10 }}>{info.icon}</Text>
+                    <Text style={[styles.movePillText, { color: info.color }]}>{info.label} ×{count}</Text>
+                  </View>
+                );
+              })}
             </View>
-          ))}
+          );
+        })()}
+        <View style={styles.movesGrid}>
+          {(fighter.unlockedMoves ?? ['jab', 'low_kick']).slice(0, 8).map((moveId) => {
+            const t = MOVE_TYPE_MAP[moveId];
+            const info = t ? MOVE_TYPES[t] : null;
+            return (
+              <View key={moveId} style={[styles.movePill, info && { borderColor: info.color + '44' }]}>
+                {info && <Text style={{ fontSize: 9 }}>{info.icon}</Text>}
+                <Text style={styles.movePillText}>{moveId.replace(/_/g, ' ').toUpperCase()}</Text>
+              </View>
+            );
+          })}
           {(fighter.unlockedMoves?.length ?? 2) > 8 && (
             <View style={[styles.movePill, { backgroundColor: '#1e1e2e' }]}>
               <Text style={styles.movePillText}>+{(fighter.unlockedMoves?.length ?? 2) - 8} MORE</Text>
@@ -397,7 +445,7 @@ const styles = StyleSheet.create({
   movesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   movePill: {
     backgroundColor: '#12121a', borderRadius: 18, paddingHorizontal: 10, paddingVertical: 4,
-    borderWidth: 1, borderColor: '#1a1a28',
+    borderWidth: 1, borderColor: '#1a1a28', flexDirection: 'row', alignItems: 'center', gap: 4,
   },
   movePillText: { color: '#444', fontSize: 8, fontWeight: '700', letterSpacing: 0.5 },
 
