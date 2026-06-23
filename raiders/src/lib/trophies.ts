@@ -155,34 +155,34 @@ export const TROPHIES: Trophy[] = [
 
   // ── RANK ────────────────────────────────────────────────────────────────────
   {
-    id: 'silver_achieved',
-    name: 'Silver Reached',
-    description: 'Reach Silver rank',
-    displayDesc: 'Outgrown the bronze.',
-    icon: '🥈', category: 'rank', rarity: 'silver', model: 'shield',
-    unlockCondition: { type: 'rank_reached', value: 'silver' },
+    id: 'goon_achieved',
+    name: 'Goon Status',
+    description: 'Reach Goon rank',
+    displayDesc: 'Word spreadin. They know who you are now.',
+    icon: '🔱', category: 'rank', rarity: 'silver', model: 'shield',
+    unlockCondition: { type: 'rank_reached', value: 'goon' },
   },
   {
-    id: 'gold_achieved',
-    name: 'Gold Achieved',
-    description: 'Reach Gold rank',
-    displayDesc: 'The arena knows your name.',
-    icon: '🥇', category: 'rank', rarity: 'gold', model: 'medal',
-    unlockCondition: { type: 'rank_reached', value: 'gold' },
+    id: 'menace_achieved',
+    name: 'Certified Menace',
+    description: 'Reach Menace rank',
+    displayDesc: 'They\'re checking your profile before they queue.',
+    icon: '⚡', category: 'rank', rarity: 'gold', model: 'medal',
+    unlockCondition: { type: 'rank_reached', value: 'menace' },
   },
   {
-    id: 'diamond_achieved',
-    name: 'Diamond Tier',
-    description: 'Reach Diamond rank',
-    displayDesc: 'Pressure turned you into something harder.',
-    icon: '💎', category: 'rank', rarity: 'platinum', model: 'diamond',
-    unlockCondition: { type: 'rank_reached', value: 'diamond' },
+    id: 'technician_achieved',
+    name: 'The Technician',
+    description: 'Reach Technician rank',
+    displayDesc: 'Every move got a reason. They can feel the gap.',
+    icon: '🔬', category: 'rank', rarity: 'platinum', model: 'diamond',
+    unlockCondition: { type: 'rank_reached', value: 'technician' },
   },
   {
     id: 'legend_achieved',
     name: 'LEGEND',
     description: 'Reach Legend rank',
-    displayDesc: 'There are no more mountains.',
+    displayDesc: 'Your name is the scouting report.',
     icon: '🌟', category: 'rank', rarity: 'obsidian', model: 'star',
     unlockCondition: { type: 'rank_reached', value: 'legend' },
   },
@@ -272,7 +272,7 @@ export function checkTrophyUnlock(
 }
 
 function rankOrder(rank: string): number {
-  const order = ['bronze','silver','gold','platinum','diamond','master','grandmaster','legend'];
+  const order = ['scrapper','goon','stick','menace','problem','technician','sovereign','legend'];
   return order.indexOf(rank);
 }
 

@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { getCharacter } from '../lib/characters';
-import { getRankDisplayString, getRankInfo } from '../lib/ranking';
+import { getRankDisplayString, getRankInfo, isStreetTier, isTechTier } from '../lib/ranking';
 import { detectBuildVariant, MOVE_TYPE_MAP, MOVE_TYPES } from '../lib/moveTypes';
 import type { Fighter } from '../types';
 
@@ -21,7 +21,7 @@ export default function ScoutingReportScreen({ player, opponent, onConfirm, onBa
   const oChar = getCharacter(opponent.selectedCharacter);
   const oRank = opponent.rank;
   const oRankInfo = oRank ? getRankInfo(oRank.tier) : null;
-  const oRankDisplay = oRank ? getRankDisplayString(oRank) : '🥉 Bronze 4';
+  const oRankDisplay = oRank ? getRankDisplayString(oRank) : '🩸 Scrapper 4';
   const oVariant = detectBuildVariant(opponent.unlockedMoves ?? [], opponent.wins);
   const pVariant = detectBuildVariant(player.unlockedMoves ?? [], player.wins);
 
@@ -113,6 +113,18 @@ export default function ScoutingReportScreen({ player, opponent, onConfirm, onBa
             <Text style={styles.rankIcon}>{oRankInfo.icon}</Text>
             <Text style={[styles.rankDisplay, { color: oRankInfo.color }]}>{oRankDisplay}</Text>
             <Text style={[styles.mmrText, { color: oRankInfo.color }]}>{oRank?.mmr ?? 0} MMR</Text>
+          </View>
+          <Text style={styles.rankFlavor}>{oRankInfo.flavor}</Text>
+          <View style={[styles.fightStylePill, {
+            backgroundColor: oRank && isStreetTier(oRank.tier) ? '#e74c3c11' : oRank && isTechTier(oRank.tier) ? '#9b59b611' : '#e8c84a11',
+            borderColor: oRank && isStreetTier(oRank.tier) ? '#e74c3c33' : oRank && isTechTier(oRank.tier) ? '#9b59b633' : '#e8c84a33',
+          }]}>
+            <Text style={[styles.fightStyleText, {
+              color: oRank && isStreetTier(oRank.tier) ? '#e74c3c' : oRank && isTechTier(oRank.tier) ? '#b44aff' : '#e8c84a',
+            }]}>
+              {oRank && isStreetTier(oRank.tier) ? '🔥 STREET FIGHTER' : oRank && isTechTier(oRank.tier) ? '🔬 TECHNICIAN' : '⚡ RISING THREAT'}
+            </Text>
+            <Text style={styles.fightStyleDesc}>{oRankInfo.fightStyle}</Text>
           </View>
         </View>
       )}
@@ -301,6 +313,12 @@ const styles = StyleSheet.create({
   typePill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 20, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5 },
   typeIcon: { fontSize: 14 },
   typeLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+
+  // Rank flavor
+  rankFlavor: { color: '#555', fontSize: 11, fontStyle: 'italic', marginTop: 6, marginBottom: 8 },
+  fightStylePill: { borderRadius: 8, borderWidth: 1, padding: 10 },
+  fightStyleText: { fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
+  fightStyleDesc: { color: '#555', fontSize: 11 },
 
   // Counter intel
   tipRow: { flexDirection: 'row', gap: 8, paddingVertical: 4 },

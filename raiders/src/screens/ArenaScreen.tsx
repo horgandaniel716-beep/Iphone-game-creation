@@ -4,7 +4,7 @@ import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useGameStore } from '../store/gameStore';
-import { buildArenaHtml, STAGES } from '../game/arenaHtml';
+import { buildArenaHtml, STAGES, getStageForRank } from '../game/arenaHtml';
 import type { StageId } from '../game/arenaHtml';
 import { getCharacter, CHARACTERS } from '../lib/characters';
 import StageSelectScreen from './StageSelectScreen';
@@ -13,27 +13,82 @@ import ScoutingReportScreen from './ScoutingReportScreen';
 import { getNewTrophies } from '../lib/trophies';
 import { detectBuildVariant } from '../lib/moveTypes';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import type { Fighter, BattleResult } from '../types';
 import type { MatchState } from '../lib/matchmaking';
 
 type Phase = 'idle' | 'mode_select' | 'stage_select' | 'matchmaking' | 'scouting' | 'battle' | 'multiplayer_lobby';
 
-function makeBotFighter(level: number): Fighter {
-  const names = ['Shadow', 'Vex', 'Krom', 'Zira', 'Nox', 'Dusk', 'Cipher', 'Raze', 'Blaze', 'Hex'];
+// Rank-flavored AI personas — scrappy street names at bottom, legendary names at top
+const BOT_PERSONAS = {
+  scrapper: [
+    { name: 'LIL BRICKS', tag: 'SCRPPR', lore: 'First fight was in a parking lot. Still fighting.' },
+    { name: 'KNUCKLES', tag: 'BLOCK', lore: 'Hands first, think later.' },
+    { name: 'SHORTY', tag: 'YARDS', lore: 'Size don\'t mean nothing. Ask around.' },
+    { name: 'DUPREE', tag: 'SCRPPR', lore: 'From the bottom. Still there but rising.' },
+  ],
+  goon: [
+    { name: 'HEAVY D', tag: 'GOON', lore: 'Word spreadin. He bodied three people last week.' },
+    { name: 'MURK', tag: 'BLOCK', lore: 'Reckless. No gameplan. Still wins.' },
+    { name: 'TRIGGA', tag: 'GOON', lore: 'Fast hands. Doesn\'t know what footwork is yet.' },
+    { name: 'STACKS', tag: 'GOONS', lore: 'Fighting for the bag. Every win pays.' },
+  ],
+  stick: [
+    { name: 'BIG STICK', tag: 'STICK', lore: 'Got hands AND range. That\'s a problem.' },
+    { name: 'PRESSURE', tag: 'STCK', lore: 'Never lets you breathe. Every round.' },
+    { name: 'DEMON TIME', tag: 'STICK', lore: 'Shows up when it matters most.' },
+    { name: 'IRON JAW', tag: 'BLOCK', lore: 'You can\'t hurt him. He can hurt you.' },
+  ],
+  menace: [
+    { name: 'MENACE II', tag: 'MNCE', lore: 'They ducking his matchup. Can\'t blame them.' },
+    { name: 'NIGHTMARE', tag: 'MNCE', lore: 'Reads your habits by round two.' },
+    { name: 'COLD CASE', tag: 'MNCE', lore: 'No one knows how he wins. He just does.' },
+    { name: 'HELLRAISER', tag: 'MNCE', lore: 'Chaotic style. Hard to scout. Harder to stop.' },
+  ],
+  problem: [
+    { name: 'THE PROBLEM', tag: 'PRBLM', lore: 'Coaches put him on film. Study the tape.' },
+    { name: 'DR. HANDS', tag: 'PRBLM', lore: 'Calculated on both sides of the screen.' },
+    { name: 'SOVEREIGN X', tag: 'PRBLM', lore: 'Won 47 in a row before first loss.' },
+    { name: 'HITMAN SAM', tag: 'PRBLM', lore: 'Methodical. Like surgery.' },
+  ],
+  technician: [
+    { name: 'THE TECHNICIAN', tag: 'TECH', lore: 'Frame data memorized. Punishes everything.' },
+    { name: 'DR. STRANGE', tag: 'TECH', lore: 'Studies every matchup. Every angle.' },
+    { name: 'GHOST PROTOCOL', tag: 'TECH', lore: 'Invisible until he wants to be seen.' },
+    { name: 'ALGORITHM', tag: 'TECH', lore: 'Plays like a computer. Optimal. Always.' },
+  ],
+  sovereign: [
+    { name: 'SOVEREIGN', tag: 'SOV', lore: 'The city knows his rank. Enough said.' },
+    { name: 'KINGPIN', tag: 'SOV', lore: 'Suffocating neutral. You never feel free.' },
+    { name: 'DYNASTY', tag: 'SOV', lore: 'Three seasons undefeated.' },
+    { name: 'THE MONARCH', tag: 'SOV', lore: 'Disciplined. Patient. Inevitable.' },
+  ],
+  legend: [
+    { name: 'BRUCE LEE JR', tag: 'LEGEND', lore: 'His name is the scouting report.' },
+    { name: 'IRON MIKE JR', tag: 'LEGEND', lore: 'One touch and the fight is over.' },
+    { name: 'GRIM REAPER', tag: 'LEGEND', lore: 'Transcendent. Opponents crack before touch.' },
+    { name: 'THE GOAT', tag: 'LEGEND', lore: 'There is no higher rank. This is him.' },
+  ],
+};
+
+function makeBotFighter(level: number, rankTier?: string): Fighter {
+  const tier = (rankTier ?? 'scrapper') as keyof typeof BOT_PERSONAS;
+  const personas = BOT_PERSONAS[tier] ?? BOT_PERSONAS.scrapper;
+  const persona = personas[Math.floor(Math.random() * personas.length)];
+  const mmrBase = { scrapper: 0, goon: 1000, stick: 2000, menace: 3000, problem: 4000, technician: 5000, sovereign: 6000, legend: 7000 }[tier] ?? 0;
   return {
     id: 'bot_' + Date.now(),
     userId: 'bot',
-    name: names[Math.floor(Math.random() * names.length)],
-    tag: 'BOT',
+    name: persona.name,
+    tag: persona.tag,
     level,
     xp: 0,
     currency: 0,
-    wins: Math.floor(Math.random() * 20),
+    wins: Math.floor(Math.random() * 30) + (mmrBase / 100),
     losses: Math.floor(Math.random() * 10),
     selectedCharacter: CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)].id,
     equipment: { head: null, body: null, weapon: null, boots: null },
-    stats: { health: 100, attack: 50, defense: 40, speed: 90 },
+    stats: { health: 100, attack: 50 + level * 2, defense: 40 + level, speed: 90 },
+    rank: { tier: tier as any, division: (Math.floor(Math.random() * 4) + 1) as 1|2|3|4, mmr: mmrBase + Math.floor(Math.random() * 800), peakMmr: mmrBase + 800, season: 1 },
   };
 }
 
@@ -45,11 +100,15 @@ export default function ArenaScreen() {
   const [pendingOpponent, setPendingOpponent] = useState<Fighter | null>(null);
   const webRef = useRef<WebView<object>>(null);
 
-  async function startBattle(sid: StageId) {
+  async function startBattle(sid?: StageId) {
     if (!fighter) return;
-    setStageId(sid);
+    // Auto-select rank-appropriate stage if none given
+    const playerMmr = fighter.rank?.mmr ?? 0;
+    const autoStage = sid ?? getStageForRank(playerMmr);
+    setStageId(autoStage);
     setPhase('matchmaking');
     await new Promise((r) => setTimeout(r, 1200));
+    const playerRankTier = fighter.rank?.tier ?? 'scrapper';
     let opponent: Fighter;
     try {
       const snap = await getDocs(
@@ -57,9 +116,9 @@ export default function ArenaScreen() {
       );
       opponent = !snap.empty
         ? snap.docs.map((d) => d.data() as Fighter)[Math.floor(Math.random() * snap.docs.length)]
-        : makeBotFighter(Math.max(1, fighter.level + Math.floor(Math.random() * 3 - 1)));
+        : makeBotFighter(Math.max(1, fighter.level + Math.floor(Math.random() * 3 - 1)), playerRankTier);
     } catch {
-      opponent = makeBotFighter(Math.max(1, fighter.level + Math.floor(Math.random() * 3 - 1)));
+      opponent = makeBotFighter(Math.max(1, fighter.level + Math.floor(Math.random() * 3 - 1)), playerRankTier);
     }
     setPendingOpponent(opponent);
     setPhase('scouting');
@@ -104,7 +163,7 @@ export default function ArenaScreen() {
           const newStreak = (fighter.currentStreak ?? 0) + 1;
           const variant = detectBuildVariant(fighter.unlockedMoves ?? [], newWins);
           const earned = fighter.earnedTrophies ?? [];
-          const newTrophies = getNewTrophies(newWins, newStreak, fighter.rank?.tier ?? 'bronze', variant.id, earned);
+          const newTrophies = getNewTrophies(newWins, newStreak, fighter.rank?.tier ?? 'scrapper', variant.id, earned);
           if (newTrophies.length > 0) {
             setTimeout(() => {
               Alert.alert(
@@ -126,7 +185,7 @@ export default function ArenaScreen() {
           const newStreak = data.won ? (fighter.currentStreak ?? 0) + 1 : 0;
           const variant2  = detectBuildVariant(fighter.unlockedMoves ?? [], newWins2);
           const earned2   = fighter.earnedTrophies ?? [];
-          const newTrophies2 = getNewTrophies(newWins2, newStreak, fighter.rank?.tier ?? 'bronze', variant2.id, earned2);
+          const newTrophies2 = getNewTrophies(newWins2, newStreak, fighter.rank?.tier ?? 'scrapper', variant2.id, earned2);
           const earnedTrophies2 = [...earned2, ...newTrophies2.map((t) => t.id)];
           updateDoc(doc(db, 'fighters', fighter.userId), {
             wins: newWins2,

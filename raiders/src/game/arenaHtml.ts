@@ -1,6 +1,16 @@
 import type { CharacterDef, Fighter } from '../types';
 
-export type StageId = 'favelas' | 'sakura' | 'death_pit' | 'neon_city' | 'void';
+export type StageId =
+  | 'wheat_field'    // scrapper
+  | 'back_alley'     // goon
+  | 'warehouse'      // stick
+  | 'underground'    // menace
+  | 'stadium'        // problem
+  | 'colosseum'      // technician
+  | 'skyscraper'     // sovereign
+  | 'void_throne'    // legend
+  // legacy
+  | 'favelas' | 'sakura' | 'death_pit' | 'neon_city' | 'void';
 
 export interface Stage {
   id: StageId;
@@ -11,14 +21,117 @@ export interface Stage {
   floorColor: string;
   skyTop: string;
   skyBottom: string;
+  rankTier?: string;   // which rank this unlocks at
+  ambient?: string;    // special JS rendering hint
 }
 
+// Rank-progressive arenas — bottom = scrappy/raw, top = elite/cinematic
+export const RANK_STAGES: Stage[] = [
+  {
+    id: 'wheat_field',
+    name: 'WHEAT FIELD',
+    location: 'Nowhere, USA',
+    description: 'Scrappy backyard brawl. Dirt, sweat, and somebody\'s uncle filming on his phone.',
+    icon: '🌾',
+    floorColor: '#8b7355',
+    skyTop: '#87ceeb',
+    skyBottom: '#d4a85e',
+    rankTier: 'scrapper',
+    ambient: 'wheat',
+  },
+  {
+    id: 'back_alley',
+    name: 'BACK ALLEY',
+    location: 'The Block',
+    description: 'Brick walls, chain-link fence, people on both sides screaming. No ref. No rules.',
+    icon: '🧱',
+    floorColor: '#4a4a4a',
+    skyTop: '#1a1a2e',
+    skyBottom: '#16213e',
+    rankTier: 'goon',
+    ambient: 'alley',
+  },
+  {
+    id: 'warehouse',
+    name: 'THE WAREHOUSE',
+    location: 'Industrial District',
+    description: 'Concrete floors, flickering lights, a crowd that paid cash. Word got around.',
+    icon: '🏭',
+    floorColor: '#3a3a3a',
+    skyTop: '#0d0d0d',
+    skyBottom: '#1a1a1a',
+    rankTier: 'stick',
+    ambient: 'warehouse',
+  },
+  {
+    id: 'underground',
+    name: 'THE UNDERGROUND',
+    location: 'Classified',
+    description: 'Invite only. Underground circuit. High stakes. No footage.',
+    icon: '🌑',
+    floorColor: '#1a0a2e',
+    skyTop: '#080810',
+    skyBottom: '#1a0a2e',
+    rankTier: 'menace',
+    ambient: 'underground',
+  },
+  {
+    id: 'stadium',
+    name: 'CITY STADIUM',
+    location: 'Main Stage',
+    description: 'Twenty thousand people. Jumbo screens. Commentators. You made it to the show.',
+    icon: '🏟️',
+    floorColor: '#2a2a3a',
+    skyTop: '#070715',
+    skyBottom: '#0d0d25',
+    rankTier: 'problem',
+    ambient: 'stadium',
+  },
+  {
+    id: 'colosseum',
+    name: 'THE COLOSSEUM',
+    location: 'Rome, Italy',
+    description: 'Ancient stone. Modern legend. The crowd has seen emperors fall here.',
+    icon: '🏛️',
+    floorColor: '#5a4a2e',
+    skyTop: '#0a0a1a',
+    skyBottom: '#1a0020',
+    rankTier: 'technician',
+    ambient: 'colosseum',
+  },
+  {
+    id: 'skyscraper',
+    name: 'ROOFTOP 88',
+    location: 'Neo Tokyo, 2087',
+    description: 'Top floor. City beneath you. Rain-slicked glass. The whole world watching.',
+    icon: '🌆',
+    floorColor: '#0a0a1a',
+    skyTop: '#050510',
+    skyBottom: '#0a0020',
+    rankTier: 'sovereign',
+    ambient: 'neon',
+  },
+  {
+    id: 'void_throne',
+    name: 'THE VOID THRONE',
+    location: '???',
+    description: 'No ground. No sky. A floating platform between dimensions. Only legends fight here.',
+    icon: '🌀',
+    floorColor: '#000000',
+    skyTop: '#000000',
+    skyBottom: '#000000',
+    rankTier: 'legend',
+    ambient: 'void',
+  },
+];
+
 export const STAGES: Stage[] = [
+  ...RANK_STAGES,
   {
     id: 'favelas',
     name: 'FAVELA CAGE',
     location: 'Rio de Janeiro, Brazil',
-    description: 'A jungle cage buried in the hillside slums. The crowd is hostile. The floor is concrete.',
+    description: 'A jungle cage buried in the hillside slums.',
     icon: '🌴',
     floorColor: '#2d4a1e',
     skyTop: '#b5651d',
@@ -28,7 +141,7 @@ export const STAGES: Stage[] = [
     id: 'sakura',
     name: 'SAKURA GROUNDS',
     location: 'Kyoto, Japan',
-    description: 'Ancient stone court beneath cherry blossoms. The mist hides your opponent until they strike.',
+    description: 'Ancient stone court beneath cherry blossoms.',
     icon: '🌸',
     floorColor: '#2e2a3a',
     skyTop: '#1a0a2e',
@@ -38,7 +151,7 @@ export const STAGES: Stage[] = [
     id: 'death_pit',
     name: 'THE DEATH PIT',
     location: 'Unknown',
-    description: 'A narrow platform over a molten abyss. Fall and die. No second chances.',
+    description: 'A narrow platform over a molten abyss.',
     icon: '💀',
     floorColor: '#1a0000',
     skyTop: '#000000',
@@ -48,7 +161,7 @@ export const STAGES: Stage[] = [
     id: 'neon_city',
     name: 'NEON DISTRICT',
     location: 'Neo Tokyo, 2087',
-    description: 'Rain-slicked rooftops under a thousand neon signs. The city watches.',
+    description: 'Rain-slicked rooftops under a thousand neon signs.',
     icon: '🌆',
     floorColor: '#0a0a1a',
     skyTop: '#050510',
@@ -58,13 +171,25 @@ export const STAGES: Stage[] = [
     id: 'void',
     name: 'THE VOID',
     location: '???',
-    description: 'No ground. No sky. Just pure darkness and two fighters who refuse to die.',
+    description: 'No ground. No sky. Just pure darkness.',
     icon: '🌀',
     floorColor: '#000000',
     skyTop: '#000000',
     skyBottom: '#000000',
   },
 ];
+
+// Returns the appropriate stage for the given average MMR
+export function getStageForRank(mmr: number): StageId {
+  if (mmr >= 7000) return 'void_throne';
+  if (mmr >= 6000) return 'skyscraper';
+  if (mmr >= 5000) return 'colosseum';
+  if (mmr >= 4000) return 'stadium';
+  if (mmr >= 3000) return 'underground';
+  if (mmr >= 2000) return 'warehouse';
+  if (mmr >= 1000) return 'back_alley';
+  return 'wheat_field';
+}
 
 export function buildArenaHtml(
   playerFighter: Fighter,
@@ -311,6 +436,56 @@ let slashTrails = [];
 
 // ─── STAGE CONFIG ─────────────────────────────────────────────────────────────
 const STAGE_CONFIGS = {
+  // Rank-progressive arenas
+  wheat_field: {
+    skyTop: '#87ceeb', skyBottom: '#d4a85e',
+    groundColor: '#8b7355', groundLine: '#a08a5e',
+    ambientGlow: '#d4a85e',
+    ambient: 'wheat',
+  },
+  back_alley: {
+    skyTop: '#1a1a2e', skyBottom: '#16213e',
+    groundColor: '#3a3a3a', groundLine: '#5a5a5a',
+    ambientGlow: '#ff8800',
+    ambient: 'alley',
+  },
+  warehouse: {
+    skyTop: '#0d0d0d', skyBottom: '#1a1a1a',
+    groundColor: '#2a2a2a', groundLine: '#444444',
+    ambientGlow: '#ffaa00',
+    ambient: 'warehouse',
+  },
+  underground: {
+    skyTop: '#080810', skyBottom: '#1a0a2e',
+    groundColor: '#1a0a2e', groundLine: '#3a1a6e',
+    ambientGlow: '#6622ff',
+    ambient: 'underground',
+  },
+  stadium: {
+    skyTop: '#070715', skyBottom: '#0d0d25',
+    groundColor: '#1a1a2e', groundLine: '#3333aa',
+    ambientGlow: '#4488ff',
+    ambient: 'stadium',
+  },
+  colosseum: {
+    skyTop: '#0a0a1a', skyBottom: '#1a0020',
+    groundColor: '#4a3a2a', groundLine: '#8a6a3a',
+    ambientGlow: '#e8c84a',
+    ambient: 'colosseum',
+  },
+  skyscraper: {
+    skyTop: '#020210', skyBottom: '#050525',
+    groundColor: '#0a0a1a', groundLine: '#00ffff',
+    ambientGlow: '#ff00aa',
+    ambient: 'neon',
+  },
+  void_throne: {
+    skyTop: '#000000', skyBottom: '#050005',
+    groundColor: '#050005', groundLine: '#6600ff',
+    ambientGlow: '#8800ff',
+    ambient: 'void',
+  },
+  // Legacy stages
   favelas: {
     skyTop: '#d4500a', skyBottom: '#8b3a1a',
     groundColor: '#3d2b1f', groundLine: '#5a3f2a',
@@ -337,7 +512,7 @@ const STAGE_CONFIGS = {
     ambientGlow: '#8800ff',
   },
 };
-const STAGE = STAGE_CONFIGS[STAGE_ID] || STAGE_CONFIGS.favelas;
+const STAGE = STAGE_CONFIGS[STAGE_ID] || STAGE_CONFIGS.wheat_field;
 
 // ─── ARTIFACT TYPES ───────────────────────────────────────────────────────────
 const ARTIFACT_TYPES = [
@@ -950,6 +1125,223 @@ function drawVoid(){
   ctx.shadowBlur=0;
 }
 
+function drawWheatField(){
+  // Big open sky
+  const sky=ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,'#87ceeb'); sky.addColorStop(0.6,'#d4a85e'); sky.addColorStop(1,'#b8860b');
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+  // Sun
+  ctx.shadowColor='#fffacd'; ctx.shadowBlur=60;
+  ctx.fillStyle='#fffde7'; ctx.beginPath(); ctx.arc(W*0.8,70,38,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
+  // Wheat stalks waving
+  const waveOff=Math.sin(roundFrame*0.025)*6;
+  for(let x=0;x<W;x+=8){
+    const h=40+Math.sin(x*0.12+roundFrame*0.03)*12;
+    ctx.strokeStyle='#c8a84b'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(x,GROUND+5); ctx.quadraticCurveTo(x+waveOff,GROUND-h/2,x+waveOff*0.5,GROUND-h); ctx.stroke();
+    // wheat head
+    ctx.fillStyle='#e8c84a'; ctx.fillRect(x+waveOff*0.5-2,GROUND-h-6,4,8);
+  }
+  // Dirt floor
+  const ground=ctx.createLinearGradient(0,GROUND,0,H);
+  ground.addColorStop(0,'#8b7355'); ground.addColorStop(1,'#5a4a2e');
+  ctx.fillStyle=ground; ctx.fillRect(0,GROUND,W,H-GROUND);
+  ctx.strokeStyle='#a08a5e'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,GROUND); ctx.lineTo(W,GROUND); ctx.stroke();
+  // Crowd (blobs — phone camera vibe)
+  for(let x=10;x<W;x+=14){const cy=GROUND+6+Math.sin(x*0.3+roundFrame*0.08)*3;ctx.fillStyle='#ffffff22';ctx.beginPath();ctx.arc(x,cy,5,0,Math.PI*2);ctx.fill();}
+}
+
+function drawBackAlley(){
+  ctx.fillStyle='#1a1a2e'; ctx.fillRect(0,0,W,H);
+  // Brick walls
+  const brickColors=['#5a3a2a','#6a4a3a','#4a2a1a'];
+  for(let y=0;y<GROUND;y+=16){
+    const off=(Math.floor(y/16)%2)*30;
+    for(let x=-off;x<W+40;x+=60){
+      ctx.fillStyle=brickColors[Math.floor(Math.random()*10)%3];
+      ctx.fillRect(x,y,56,14);
+      ctx.strokeStyle='#3a2a1a22'; ctx.lineWidth=1;
+      ctx.strokeRect(x,y,56,14);
+    }
+  }
+  // Chain-link fence top
+  ctx.strokeStyle='#88888888'; ctx.lineWidth=1;
+  for(let x=0;x<W;x+=16){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x+8,20);ctx.lineTo(x+16,0);ctx.stroke();}
+  // Streetlight glow
+  ctx.shadowColor='#ff8800'; ctx.shadowBlur=80;
+  ctx.fillStyle='#ff880022'; ctx.fillRect(W*0.25-30,0,60,GROUND);
+  ctx.fillRect(W*0.75-30,0,60,GROUND);
+  ctx.shadowBlur=0;
+  // Ground
+  const ground=ctx.createLinearGradient(0,GROUND,0,H);
+  ground.addColorStop(0,'#3a3a3a'); ground.addColorStop(1,'#1a1a1a');
+  ctx.fillStyle=ground; ctx.fillRect(0,GROUND,W,H-GROUND);
+  ctx.strokeStyle='#5a5a5a'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,GROUND); ctx.lineTo(W,GROUND); ctx.stroke();
+}
+
+function drawWarehouse(){
+  ctx.fillStyle='#0d0d0d'; ctx.fillRect(0,0,W,H);
+  // Metal ceiling panels
+  for(let x=0;x<W;x+=80){ctx.fillStyle=x%160===0?'#1a1a1a':'#141414';ctx.fillRect(x,0,80,40);}
+  // Flickering lights
+  const flicker=Math.sin(roundFrame*0.3+1)*0.4+0.6;
+  for(let x=40;x<W;x+=160){
+    ctx.shadowColor='#ffaa00'; ctx.shadowBlur=40*flicker;
+    ctx.fillStyle=\`rgba(255,170,0,\${0.15*flicker})\`;
+    ctx.fillRect(x-20,0,40,GROUND);
+    ctx.fillStyle=\`rgba(255,200,100,\${flicker})\`;
+    ctx.fillRect(x-4,10,8,4);
+  }
+  ctx.shadowBlur=0;
+  // Industrial pipes along the wall
+  ctx.strokeStyle='#333333'; ctx.lineWidth=8;
+  for(let y=60;y<GROUND-40;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  // Floor
+  const ground=ctx.createLinearGradient(0,GROUND,0,H);
+  ground.addColorStop(0,'#2a2a2a'); ground.addColorStop(1,'#111111');
+  ctx.fillStyle=ground; ctx.fillRect(0,GROUND,W,H-GROUND);
+  ctx.strokeStyle='#444'; ctx.lineWidth=1;
+  for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,GROUND);ctx.lineTo(x,H);ctx.stroke();}
+  ctx.strokeStyle='#ff8800'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(0,GROUND); ctx.lineTo(W,GROUND); ctx.stroke();
+  // Crowd in darkness
+  for(let x=0;x<W;x+=12){
+    const ch=10+Math.sin(x*0.5+roundFrame*0.1)*4;
+    ctx.fillStyle='#ffffff11'; ctx.fillRect(x,GROUND-ch,8,ch);
+  }
+}
+
+function drawUnderground(){
+  ctx.fillStyle='#08080f'; ctx.fillRect(0,0,W,H);
+  // Pulsing purple glow from floor
+  const pulse=Math.sin(roundFrame*0.04)*0.3+0.7;
+  const glow=ctx.createRadialGradient(W/2,GROUND,0,W/2,GROUND,W*0.6);
+  glow.addColorStop(0,\`rgba(102,34,255,\${0.25*pulse})\`);
+  glow.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
+  // Concrete walls with graffiti splashes
+  ctx.fillStyle='#1a0a2e'; ctx.fillRect(0,0,W,GROUND);
+  const graffColors=['#ff0088','#00ffcc','#ff4400','#aaff00'];
+  for(let i=0;i<8;i++){
+    const gx=30+i*(W/8), gy=40+Math.sin(i*1.3)*60;
+    ctx.shadowColor=graffColors[i%4]; ctx.shadowBlur=15;
+    ctx.fillStyle=graffColors[i%4]+'44';
+    ctx.fillRect(gx-15,gy-8,30,16);
+    ctx.shadowBlur=0;
+  }
+  // Laser lines
+  const laserAlpha=Math.sin(roundFrame*0.07)*0.3+0.3;
+  ctx.strokeStyle=\`rgba(102,34,255,\${laserAlpha})\`; ctx.lineWidth=1;
+  for(let x=0;x<W;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,GROUND);ctx.stroke();}
+  const ground=ctx.createLinearGradient(0,GROUND,0,H);
+  ground.addColorStop(0,'#1a0a2e'); ground.addColorStop(1,'#08080f');
+  ctx.fillStyle=ground; ctx.fillRect(0,GROUND,W,H-GROUND);
+  ctx.shadowColor='#6622ff'; ctx.shadowBlur=20;
+  ctx.strokeStyle='#6622ff'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,GROUND); ctx.lineTo(W,GROUND); ctx.stroke();
+  ctx.shadowBlur=0;
+}
+
+function drawStadium(){
+  ctx.fillStyle='#070715'; ctx.fillRect(0,0,W,H);
+  // Stadium lights
+  const spotlightColor='rgba(100,150,255,';
+  for(let i=0;i<4;i++){
+    const sx=W*0.1+i*(W*0.27), sy=0;
+    const spot=ctx.createRadialGradient(sx,sy,0,sx,GROUND*0.5,GROUND*0.8);
+    spot.addColorStop(0,spotlightColor+'0.15)'); spot.addColorStop(1,spotlightColor+'0)');
+    ctx.fillStyle=spot; ctx.fillRect(0,0,W,GROUND);
+  }
+  // Stadium seating (packed crowd)
+  for(let row=0;row<8;row++){
+    const rowY=row*28, rowAlpha=0.3-row*0.025;
+    for(let seat=0;seat<(W/18)+1;seat++){
+      const active=Math.sin(seat*1.7+roundFrame*0.12+row*0.9)>0.3;
+      ctx.fillStyle=active?\`rgba(255,220,100,\${rowAlpha})\`:\`rgba(255,255,255,\${rowAlpha*0.3})\`;
+      ctx.fillRect(seat*18,rowY,14,20);
+    }
+  }
+  // Jumbotron
+  ctx.fillStyle='#111122'; ctx.fillRect(W*0.3,10,W*0.4,60);
+  ctx.strokeStyle='#3333aa'; ctx.lineWidth=2; ctx.strokeRect(W*0.3,10,W*0.4,60);
+  ctx.fillStyle='#e8c84a'; ctx.font='bold 14px monospace';
+  ctx.textAlign='center'; ctx.fillText('SLUGGER CHAMPIONSHIP',W/2,50);
+  // Floor
+  const ground=ctx.createLinearGradient(0,GROUND,0,H);
+  ground.addColorStop(0,'#1a1a2e'); ground.addColorStop(1,'#080810');
+  ctx.fillStyle=ground; ctx.fillRect(0,GROUND,W,H-GROUND);
+  ctx.shadowColor='#4488ff'; ctx.shadowBlur=15;
+  ctx.strokeStyle='#4488ff'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(0,GROUND); ctx.lineTo(W,GROUND); ctx.stroke();
+  ctx.shadowBlur=0;
+}
+
+function drawColosseum(){
+  const sky=ctx.createLinearGradient(0,0,0,GROUND);
+  sky.addColorStop(0,'#0a0a1a'); sky.addColorStop(1,'#1a0020');
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+  // Ancient stone columns
+  const colColor='#4a3a2a';
+  for(let x=0;x<W+40;x+=80){
+    ctx.fillStyle=colColor; ctx.fillRect(x-8,0,16,GROUND);
+    ctx.fillStyle='#5a4a3a'; ctx.fillRect(x-12,-10,24,20);
+    ctx.fillStyle='#5a4a3a'; ctx.fillRect(x-12,GROUND-20,24,20);
+  }
+  // Stars
+  ctx.fillStyle='#ffffff'; ctx.shadowColor='#ffffff'; ctx.shadowBlur=4;
+  for(let i=0;i<60;i++){const sx=((i*137)%W),sy=((i*53)%GROUND*0.6);ctx.fillRect(sx,sy,1,1);}
+  ctx.shadowBlur=0;
+  // Golden torch glow
+  ctx.shadowColor='#e8c84a'; ctx.shadowBlur=50;
+  ctx.fillStyle='#e8c84a11';
+  ctx.fillRect(0,0,40,GROUND); ctx.fillRect(W-40,0,40,GROUND);
+  ctx.shadowBlur=0;
+  // Sand floor
+  const ground=ctx.createLinearGradient(0,GROUND,0,H);
+  ground.addColorStop(0,'#5a4a2e'); ground.addColorStop(1,'#3a2a1a');
+  ctx.fillStyle=ground; ctx.fillRect(0,GROUND,W,H-GROUND);
+  ctx.shadowColor='#e8c84a'; ctx.shadowBlur=10;
+  ctx.strokeStyle='#8a6a3a'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(0,GROUND); ctx.lineTo(W,GROUND); ctx.stroke();
+  ctx.shadowBlur=0;
+  // Crowd chant (wave animation)
+  for(let x=0;x<W;x+=10){
+    const ch=8+Math.sin(x*0.2+roundFrame*0.07)*5;
+    ctx.fillStyle='#e8c84a22'; ctx.fillRect(x,GROUND-ch,7,ch);
+  }
+}
+
+function drawVoidThrone(){
+  ctx.fillStyle='#000000'; ctx.fillRect(0,0,W,H);
+  // Floating platform instead of ground line
+  const t=roundFrame*0.005;
+  // Dimensional tears
+  for(let i=0;i<5;i++){
+    const tx=W*0.1+i*(W*0.2), ty=GROUND*0.3+Math.sin(t*0.8+i*1.2)*30;
+    ctx.strokeStyle=\`hsla(\${(roundFrame*2+i*72)%360},100%,60%,0.3)\`; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(tx-20,ty); ctx.lineTo(tx+20,ty); ctx.stroke();
+  }
+  // Void runes
+  for(let i=0;i<3;i++){
+    const rx=W/2+Math.cos(t+i*2.09)*W*0.35, ry=H*0.4+Math.sin(t*0.7+i*2.09)*80;
+    ctx.shadowColor='#8800ff'; ctx.shadowBlur=20;
+    ctx.strokeStyle='#4400aa'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(rx,ry,30+i*15,0,Math.PI*2); ctx.stroke();
+    ctx.strokeStyle='#6600ff'; ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.arc(rx,ry,15,t*3,t*3+Math.PI*1.5); ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+  // Star field
+  for(let i=0;i<80;i++){
+    const sx=((i*137+roundFrame*0.1)%W), sy=((i*53)%H);
+    const star=Math.sin(t*3+i)*0.5+0.5;
+    ctx.fillStyle=\`rgba(200,150,255,\${star*0.6})\`; ctx.fillRect(sx,sy,1,1);
+  }
+  // Platform (floating stone)
+  const platGlow=ctx.createLinearGradient(0,GROUND-4,0,GROUND+20);
+  platGlow.addColorStop(0,'#8800ff'); platGlow.addColorStop(1,'#00000000');
+  ctx.shadowColor='#8800ff'; ctx.shadowBlur=30;
+  ctx.fillStyle='#050005'; ctx.fillRect(0,GROUND,W,H-GROUND);
+  ctx.strokeStyle='#6600ff'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(0,GROUND); ctx.lineTo(W,GROUND); ctx.stroke();
+  ctx.shadowBlur=0;
+}
+
 // ─── ANIME-STYLE FIGHTER RENDERER ─────────────────────────────────────────────
 function drawFighter(f){
   // After-images (speed / super)
@@ -1385,7 +1777,12 @@ function drawIntro(){
   ctx.fillStyle='rgba(0,0,0,0.88)'; ctx.fillRect(0,0,W,H);
   const progress=Math.min(1,introFrame/60);
   ctx.globalAlpha=progress;
-  const stageNames={favelas:'🌴 FAVELA CAGE',sakura:'🌸 SAKURA GROUNDS',death_pit:'💀 THE DEATH PIT',neon_city:'🌆 NEON DISTRICT',void:'🌀 THE VOID'};
+  const stageNames={
+    wheat_field:'🌾 WHEAT FIELD',back_alley:'🧱 BACK ALLEY',warehouse:'🏭 THE WAREHOUSE',
+    underground:'🌑 THE UNDERGROUND',stadium:'🏟️ CITY STADIUM',colosseum:'🏛️ THE COLOSSEUM',
+    skyscraper:'🌆 ROOFTOP 88',void_throne:'🌀 VOID THRONE',
+    favelas:'🌴 FAVELA CAGE',sakura:'🌸 SAKURA GROUNDS',death_pit:'💀 THE DEATH PIT',neon_city:'🌆 NEON DISTRICT',void:'🌀 THE VOID',
+  };
   ctx.fillStyle='#e8c84a'; ctx.font='bold 15px sans-serif'; ctx.textAlign='center';
   ctx.fillText(stageNames[STAGE_ID]||'ARENA',W/2,38);
   ctx.fillStyle='#e8c84a'; ctx.font='bold 42px sans-serif';
@@ -1490,7 +1887,15 @@ function loop(){
   ctx.save(); ctx.translate(sx,sy);
 
   // Draw stage
-  if(STAGE_ID==='favelas') drawFavelas();
+  if(STAGE_ID==='wheat_field') drawWheatField();
+  else if(STAGE_ID==='back_alley') drawBackAlley();
+  else if(STAGE_ID==='warehouse') drawWarehouse();
+  else if(STAGE_ID==='underground') drawUnderground();
+  else if(STAGE_ID==='stadium') drawStadium();
+  else if(STAGE_ID==='colosseum') drawColosseum();
+  else if(STAGE_ID==='skyscraper') drawNeonCity();
+  else if(STAGE_ID==='void_throne') drawVoidThrone();
+  else if(STAGE_ID==='favelas') drawFavelas();
   else if(STAGE_ID==='sakura') drawSakura();
   else if(STAGE_ID==='death_pit') drawDeathPit();
   else if(STAGE_ID==='neon_city') drawNeonCity();

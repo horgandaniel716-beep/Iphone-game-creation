@@ -19,7 +19,13 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "backgroundColor": "#080810",
+      "themeColor": "#e8c84a",
+      "name": "SLUGGER",
+      "shortName": "SLUGGER",
+      "description": "The hardest fighting game on mobile."
     }
   }
 }

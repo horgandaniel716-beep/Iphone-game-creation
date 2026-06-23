@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+
+  <title>SLUGGER</title>
+  <meta name="description" content="The hardest fighting game on mobile." />
+  <meta name="theme-color" content="#e8c84a" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="SLUGGER" />
+  <meta property="og:description" content="The hardest fighting game on mobile." />
+  <meta property="og:type" content="website" />
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #080810;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Desktop: show phone frame */
+    @media (min-width: 520px) {
+      body {
+        background: radial-gradient(ellipse at 50% 0%, #1a0a2e 0%, #080810 60%);
+        justify-content: center;
+        padding: 40px 20px;
+      }
+
+      .desktop-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 32px;
+      }
+
+      .desktop-logo {
+        font-size: 28px;
+      }
+
+      .desktop-title {
+        color: #e8c84a;
+        font-size: 22px;
+        font-weight: 900;
+        letter-spacing: 6px;
+      }
+
+      .desktop-subtitle {
+        color: #333;
+        font-size: 10px;
+        letter-spacing: 3px;
+        margin-top: 2px;
+      }
+
+      .phone-frame {
+        width: 390px;
+        height: 844px;
+        background: #0a0a0f;
+        border-radius: 48px;
+        overflow: hidden;
+        box-shadow:
+          0 0 0 1px #2a2a3a,
+          0 0 0 10px #111118,
+          0 0 0 11px #2a2a3a,
+          0 40px 120px rgba(0,0,0,0.8),
+          0 0 80px rgba(232,200,74,0.06);
+        position: relative;
+        flex-shrink: 0;
+      }
+
+      /* Notch */
+      .phone-frame::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 120px;
+        height: 32px;
+        background: #111118;
+        border-radius: 0 0 20px 20px;
+        z-index: 9999;
+      }
+
+      /* Side buttons */
+      .phone-frame::after {
+        content: '';
+        position: absolute;
+        right: -3px;
+        top: 140px;
+        width: 3px;
+        height: 60px;
+        background: #222230;
+        border-radius: 0 2px 2px 0;
+        box-shadow: 0 80px 0 #222230, 0 150px 0 #222230;
+      }
+
+      #root {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .desktop-footer {
+        margin-top: 24px;
+        color: #252535;
+        font-size: 10px;
+        letter-spacing: 2px;
+        text-align: center;
+      }
+
+      .desktop-footer a {
+        color: #333;
+        text-decoration: none;
+      }
+
+      .store-badges {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+        justify-content: center;
+      }
+
+      .store-badge {
+        background: #12121a;
+        border: 1px solid #2a2a3a;
+        border-radius: 12px;
+        padding: 10px 18px;
+        color: #666;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        cursor: default;
+      }
+    }
+
+    /* Mobile: full screen, no frame */
+    @media (max-width: 519px) {
+      .desktop-header,
+      .desktop-footer,
+      .store-badges { display: none; }
+
+      .phone-frame {
+        width: 100vw;
+        min-height: 100vh;
+        border-radius: 0;
+        box-shadow: none;
+        background: #0a0a0f;
+      }
+
+      #root {
+        width: 100%;
+        height: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="desktop-header">
+    <span class="desktop-logo">⚔️</span>
+    <div>
+      <div class="desktop-title">SLUGGER</div>
+      <div class="desktop-subtitle">THE HARDEST FIGHTING GAME ON MOBILE</div>
+    </div>
+  </div>
+
+  <div class="phone-frame">
+    <div id="root"></div>
+  </div>
+
+  <div class="store-badges">
+    <div class="store-badge">📱 APP STORE — COMING SOON</div>
+    <div class="store-badge">🤖 GOOGLE PLAY — COMING SOON</div>
+  </div>
+
+  <div class="desktop-footer">
+    <p>SLUGGER © 2026 &nbsp;•&nbsp; BUILT DIFFERENT</p>
+  </div>
+</body>
+</html>

@@ -11,7 +11,71 @@ import { STAGES } from '../game/arenaHtml';
 import type { StageId } from '../game/arenaHtml';
 import { useGameStore } from '../store/gameStore';
 
-const STAGE_DETAILS: Record<StageId, { vibe: string; hazard: string; bgColor: string; accentColor: string; borderColor: string; lines: string[] }> = {
+const STAGE_DETAILS: Partial<Record<StageId, { vibe: string; hazard: string; bgColor: string; accentColor: string; borderColor: string; lines: string[] }>> = {
+  wheat_field: {
+    vibe: '🌾 SCRAPPY & RAW',
+    hazard: 'Open space — nowhere to hide. Crowd watches from the fence.',
+    bgColor: '#1a1000',
+    accentColor: '#d4a85e',
+    borderColor: '#8b7355',
+    lines: ['Open dirt field', 'Someone\'s uncle filming on his phone', 'No rules, no ref'],
+  },
+  back_alley: {
+    vibe: '🧱 GRIMY & HOSTILE',
+    hazard: 'Bystanders. Chain-link fence. Nowhere to run.',
+    bgColor: '#0a0a14',
+    accentColor: '#ff8800',
+    borderColor: '#3a3a6a',
+    lines: ['Brick walls, bad lighting', 'Crowd paid cash', 'Word got around'],
+  },
+  warehouse: {
+    vibe: '🏭 INDUSTRIAL HEAT',
+    hazard: 'Flickering lights — hard to read your opponent.',
+    bgColor: '#0d0d0d',
+    accentColor: '#ffaa00',
+    borderColor: '#444444',
+    lines: ['Concrete floors', 'Underground circuit', 'No footage'],
+  },
+  underground: {
+    vibe: '🌑 INVITE ONLY',
+    hazard: 'Purple laser grid disrupts your rhythm.',
+    bgColor: '#08080f',
+    accentColor: '#6622ff',
+    borderColor: '#3a1a6e',
+    lines: ['Graffiti walls', 'High stakes', 'No footage, ever'],
+  },
+  stadium: {
+    vibe: '🏟️ THE MAIN STAGE',
+    hazard: 'Twenty thousand watching. The pressure is real.',
+    bgColor: '#070715',
+    accentColor: '#4488ff',
+    borderColor: '#3333aa',
+    lines: ['Jumbo screens', 'Professional lighting', 'You made it here'],
+  },
+  colosseum: {
+    vibe: '🏛️ ANCIENT GLORY',
+    hazard: 'The sand is slippery. Footing matters.',
+    bgColor: '#0a0a1a',
+    accentColor: '#e8c84a',
+    borderColor: '#4a3a2a',
+    lines: ['Ancient stone', 'Torchlight', 'Emperors fell here'],
+  },
+  skyscraper: {
+    vibe: '🌆 HIGH ALTITUDE',
+    hazard: 'Rain-slick floors. Neon blinds at close range.',
+    bgColor: '#020210',
+    accentColor: '#ff00aa',
+    borderColor: '#1a1a2a',
+    lines: ['Top floor', 'Whole city beneath you', 'The world is watching'],
+  },
+  void_throne: {
+    vibe: '🌀 TRANSCENDENT',
+    hazard: 'Dimensional tears deal passive damage near edges.',
+    bgColor: '#000000',
+    accentColor: '#8800ff',
+    borderColor: '#4400aa',
+    lines: ['No ground', 'No sky', 'Only legends fight here'],
+  },
   favelas: {
     vibe: '🌡️ HOT & DIRTY',
     hazard: 'Chain-link walls close in the further you get pushed',
@@ -43,10 +107,10 @@ interface StageSelectScreenProps {
 }
 
 export default function StageSelectScreen({ onSelect }: StageSelectScreenProps) {
-  const [selected, setSelected] = useState<StageId>('favelas');
+  const [selected, setSelected] = useState<StageId>('wheat_field');
 
   const stage    = STAGES.find((s) => s.id === selected)!;
-  const detail   = STAGE_DETAILS[selected];
+  const detail   = STAGE_DETAILS[selected] ?? STAGE_DETAILS['wheat_field']!;
 
   return (
     <View style={styles.container}>
@@ -56,7 +120,7 @@ export default function StageSelectScreen({ onSelect }: StageSelectScreenProps) 
       {/* Stage tabs */}
       <View style={styles.tabs}>
         {STAGES.map((s) => {
-          const d = STAGE_DETAILS[s.id as StageId];
+          const d = STAGE_DETAILS[s.id as StageId] ?? STAGE_DETAILS['wheat_field']!;
           const isActive = selected === s.id;
           return (
             <TouchableOpacity

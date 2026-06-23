@@ -1,6 +1,6 @@
 export type FighterArchetype = 'balanced' | 'rushdown' | 'powerhouse' | 'trickster' | 'assassin' | 'tank' | 'zoner' | 'summoner';
 
-export type RankTier = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'master' | 'grandmaster' | 'legend';
+export type RankTier = 'scrapper' | 'goon' | 'stick' | 'menace' | 'problem' | 'technician' | 'sovereign' | 'legend';
 
 export interface Rank {
   tier: RankTier;

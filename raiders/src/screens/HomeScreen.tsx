@@ -17,10 +17,11 @@ const RARITY_COLOR = {
 
 // Mock social feed
 const MOCK_FEED = [
-  { user: 'VENOM_XIII', action: 'dropped a 14 hit combo', char: '🐍', color: '#2ecc71', time: '2m ago' },
-  { user: 'TITANFALL',  action: 'went 7-0 streak in Diamond',  char: '🏔️', color: '#4a9eff', time: '8m ago' },
-  { user: 'GHOSTSTEP',  action: 'got a FLAWLESS victory',    char: '👻', color: '#b44aff', time: '14m ago' },
-  { user: 'APEX_GOD',   action: 'unlocked OVERPOWERED tier', char: '⚡', color: '#ff9000', time: '1h ago' },
+  { user: 'VENOM_XIII', action: 'dropped a 14 hit combo on a Menace', char: '🐍', color: '#2ecc71', time: '2m ago' },
+  { user: 'TITANFALL',  action: 'hit Sovereign — they\'re not playing',  char: '🏔️', color: '#e8c84a', time: '8m ago' },
+  { user: 'GHOSTSTEP',  action: 'got a FLAWLESS on a Problem',    char: '👻', color: '#b44aff', time: '14m ago' },
+  { user: 'APEX_GOD',   action: 'reached LEGEND. Send the next one.', char: '🌟', color: '#ff2d78', time: '1h ago' },
+  { user: 'SCRAPPER44', action: 'just hit Goon status 🔱 word spreadin', char: '🩸', color: '#e67e22', time: '3h ago' },
 ];
 
 export default function HomeScreen() {
@@ -33,7 +34,7 @@ export default function HomeScreen() {
   const xpPercent = Math.min((fighter.xp / (500 * fighter.level)) * 100, 100);
   const rank = fighter.rank;
   const rankInfo = rank ? getRankInfo(rank.tier) : null;
-  const rankDisplay = rank ? getRankDisplayString(rank) : '🥉 Bronze 4';
+  const rankDisplay = rank ? getRankDisplayString(rank) : '🩸 Scrapper 4';
   const totalGames = fighter.wins + fighter.losses;
   const winRate = totalGames > 0 ? Math.round((fighter.wins / totalGames) * 100) : 0;
   const variantRaw = detectBuildVariant(fighter.unlockedMoves ?? [], fighter.wins);
