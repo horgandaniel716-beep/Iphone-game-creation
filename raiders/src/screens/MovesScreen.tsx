@@ -7,7 +7,27 @@ import { db } from '../lib/firebase';
 import { useGameStore } from '../store/gameStore';
 import { MOVES, MOVE_TIER_COLORS, getMovesByTier } from '../lib/moves';
 import { MOVE_TYPE_MAP, MOVE_TYPES } from '../lib/moveTypes';
-import type { Move } from '../types';
+import { getRankInfo } from '../lib/ranking';
+import type { Move, RankTier } from '../types';
+
+// Rank gates per move tier — you can't unlock OP stuff until you earn the rank
+const TIER_RANK_GATE: Record<Move['tier'], RankTier | null> = {
+  common:      null,           // always available
+  uncommon:    null,           // always available
+  rare:        'stick',        // Stick rank (2000+ MMR)
+  epic:        'menace',       // Menace rank (3000+ MMR)
+  legendary:   'technician',   // Technician rank (5000+ MMR)
+  overpowered: 'legend',       // Legend only
+};
+
+const RANK_ORDER: RankTier[] = ['scrapper','goon','stick','menace','problem','technician','sovereign','legend'];
+
+function meetsRankGate(playerTier: RankTier | undefined, requiredTier: RankTier | null): boolean {
+  if (!requiredTier) return true;
+  const playerIdx  = RANK_ORDER.indexOf(playerTier ?? 'scrapper');
+  const requiredIdx = RANK_ORDER.indexOf(requiredTier);
+  return playerIdx >= requiredIdx;
+}
 
 const TIERS: Move['tier'][] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'overpowered'];
 const TIER_LABELS: Record<Move['tier'], string> = {
@@ -26,6 +46,10 @@ export default function MovesScreen() {
 
   const moves = getMovesByTier(selectedTier);
   const unlocked = fighter?.unlockedMoves ?? [];
+  const playerRankTier = fighter?.rank?.tier;
+  const rankGate = TIER_RANK_GATE[selectedTier];
+  const tierUnlocked = meetsRankGate(playerRankTier, rankGate);
+  const rankGateInfo = rankGate ? getRankInfo(rankGate) : null;
   const isOverpowered = selectedTier === 'overpowered';
   const meetsOPRequirement = (fighter?.level ?? 0) >= 50;
 
@@ -35,12 +59,18 @@ export default function MovesScreen() {
       Alert.alert('Already Unlocked', `${move.name} is already in your arsenal.`);
       return;
     }
-    if (fighter.level < move.unlockLevel) {
-      Alert.alert('Level Required', `You need to be level ${move.unlockLevel} to unlock ${move.name}.`);
+    // Rank gate check — the most important one
+    const moveGate = TIER_RANK_GATE[move.tier];
+    if (!meetsRankGate(playerRankTier, moveGate)) {
+      const gateInfo = moveGate ? getRankInfo(moveGate) : null;
+      Alert.alert(
+        '🔒 RANK LOCKED',
+        `${move.name} is ${move.tier} tier.\n\nYou need to reach ${gateInfo?.label ?? moveGate} rank to unlock moves like this.\n\nClimb the ladder first. Earn it.`,
+      );
       return;
     }
-    if (isOverpowered && !meetsOPRequirement) {
-      Alert.alert('Level 50 Required', 'Overpowered moves can only be used in God Tier arenas and require Level 50.');
+    if (fighter.level < move.unlockLevel) {
+      Alert.alert('Level Required', `You need to be level ${move.unlockLevel} to unlock ${move.name}.`);
       return;
     }
     if (fighter.currency < move.unlockCost) {
@@ -81,6 +111,7 @@ export default function MovesScreen() {
       </View>
       <Text style={styles.subtitle}>
         {unlocked.length} moves unlocked  •  LVL {fighter?.level ?? 1}
+        {playerRankTier ? `  •  ${getRankInfo(playerRankTier).icon} ${getRankInfo(playerRankTier).label}` : ''}
       </Text>
 
       {/* Tier tabs */}
