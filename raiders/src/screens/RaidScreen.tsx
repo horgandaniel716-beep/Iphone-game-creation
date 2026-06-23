@@ -12,11 +12,11 @@ import {
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useGameStore } from '../store/gameStore';
-import type { Base, Raider } from '../types';
+import type { Base, Fighter } from '../types';
 import { useNavigation } from '@react-navigation/native';
 
 interface RaidTarget {
-  raider: Raider;
+  raider: Fighter;
   base: Base;
 }
 
@@ -28,7 +28,7 @@ const RARITY_COLOR = {
 };
 
 export default function RaidScreen() {
-  const { raider } = useGameStore();
+  const { fighter: raider } = useGameStore();
   const [targets, setTargets] = useState<RaidTarget[]>([]);
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation<any>();
@@ -37,9 +37,9 @@ export default function RaidScreen() {
     setLoading(true);
     try {
       const snap = await getDocs(
-        query(collection(db, 'raiders'), where('userId', '!=', raider?.userId ?? ''), limit(20))
+        query(collection(db, 'fighters'), where('userId', '!=', raider?.userId ?? ''), limit(20))
       );
-      const raiders = snap.docs.map((d) => d.data() as Raider);
+      const raiders = snap.docs.map((d) => d.data() as Fighter);
       const results: RaidTarget[] = [];
 
       for (const r of raiders.slice(0, 6)) {
@@ -69,16 +69,17 @@ export default function RaidScreen() {
     const lvl = Math.max(1, (raider?.level ?? 1) + Math.floor(Math.random() * 4 - 1));
     const names = ['Deimos', 'Raven', 'Vex', 'Kali', 'Mortis', 'Shade'];
     const name = names[Math.floor(Math.random() * names.length)];
-    const botRaider: Raider = {
+    const botRaider: Fighter = {
       id: 'bot_' + Math.random().toString(36).slice(2),
       userId: 'bot_' + Math.random().toString(36).slice(2),
       name,
       level: lvl,
       xp: 0,
       currency: 0,
+      tag: 'BOT',
+      selectedCharacter: ['apex', 'venom', 'titan', 'ghost'][Math.floor(Math.random() * 4)],
       wins: Math.floor(Math.random() * 30),
       losses: Math.floor(Math.random() * 15),
-      raids: Math.floor(Math.random() * 20),
       equipment: { head: null, body: null, weapon: null, boots: null },
       stats: {
         health: 80 + lvl * 15,
@@ -86,7 +87,6 @@ export default function RaidScreen() {
         defense: 8 + lvl * 2,
         speed: 70 + lvl * 3,
       },
-      avatarStyle: { skinTone: '#8B4513', hairColor: '#000', outfit: 'default' },
     };
 
     const demonCount = Math.floor(Math.random() * 3);
@@ -94,7 +94,6 @@ export default function RaidScreen() {
       id: 'bot_base_' + Date.now(),
       userId: botRaider.userId,
       name: `${name}'s Lair`,
-      layout: { walls: [], floors: [], traps: [] },
       demons: [],
       trophies: Math.floor(Math.random() * 500),
       lastRaidedAt: null,

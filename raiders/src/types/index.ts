@@ -1,19 +1,21 @@
-export interface Raider {
+export type FighterArchetype = 'balanced' | 'rushdown' | 'powerhouse' | 'trickster';
+
+export interface Fighter {
   id: string;
   userId: string;
   name: string;
+  tag: string;
   level: number;
   xp: number;
   currency: number;
   wins: number;
   losses: number;
-  raids: number;
+  selectedCharacter: CharacterDef['id'];
   equipment: Equipment;
-  stats: RaiderStats;
-  avatarStyle: AvatarStyle;
+  stats: FighterStats;
 }
 
-export interface RaiderStats {
+export interface FighterStats {
   health: number;
   attack: number;
   defense: number;
@@ -27,32 +29,28 @@ export interface Equipment {
   boots: string | null;
 }
 
-export interface AvatarStyle {
-  skinTone: string;
-  hairColor: string;
-  outfit: string;
+export interface CharacterDef {
+  id: string;
+  name: string;
+  subtitle: string;
+  archetype: FighterArchetype;
+  primaryColor: string;
+  accentColor: string;
+  glowColor: string;
+  stats: FighterStats;
+  specialName: string;
+  specialDesc: string;
+  icon: string;
+  unlockCost: number;
 }
 
 export interface Base {
   id: string;
   userId: string;
   name: string;
-  layout: BaseLayout;
   demons: Demon[];
   trophies: number;
   lastRaidedAt: number | null;
-}
-
-export interface BaseLayout {
-  walls: Tile[];
-  floors: Tile[];
-  traps: Tile[];
-}
-
-export interface Tile {
-  x: number;
-  y: number;
-  type: string;
 }
 
 export interface Demon {
@@ -95,9 +93,9 @@ export interface BattleResult {
   won: boolean;
   currencyEarned: number;
   xpEarned: number;
-  durationSeconds: number;
-  opponentId: string;
+  roundsWon: number;
   opponentName: string;
+  opponentCharacter: string;
   timestamp: number;
 }
 
@@ -105,9 +103,9 @@ export interface ShopItem {
   id: string;
   name: string;
   description: string;
-  type: 'equipment' | 'base_piece' | 'demon_slot';
+  type: 'equipment' | 'demon_slot';
   slot?: keyof Equipment;
   cost: number;
-  statBoosts?: Partial<RaiderStats>;
+  statBoosts?: Partial<FighterStats>;
   icon: string;
 }

@@ -94,7 +94,7 @@ const SHOP_ITEMS: ShopItem[] = [
 ];
 
 export default function ShopScreen() {
-  const { raider, addCurrency } = useGameStore();
+  const { fighter: raider, addCurrency } = useGameStore();
 
   function buyItem(item: ShopItem) {
     if (!raider) return;
@@ -113,7 +113,7 @@ export default function ShopScreen() {
           onPress: async () => {
             addCurrency(-item.cost);
             // Apply stat boosts
-            if (item.statBoosts && raider.userId !== 'bot') {
+            if (item.statBoosts && raider?.userId !== 'bot') {
               const newStats = { ...raider.stats };
               for (const [key, val] of Object.entries(item.statBoosts)) {
                 (newStats as any)[key] = ((newStats as any)[key] ?? 0) + val;
@@ -121,7 +121,7 @@ export default function ShopScreen() {
               const newEquipment = { ...raider.equipment };
               if (item.slot) newEquipment[item.slot] = item.id;
 
-              await updateDoc(doc(db, 'raiders', raider.userId), {
+              await updateDoc(doc(db, 'fighters', raider?.userId), {
                 stats: newStats,
                 equipment: newEquipment,
                 currency: raider.currency - item.cost,

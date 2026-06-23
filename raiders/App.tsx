@@ -8,19 +8,19 @@ import { auth, db } from './src/lib/firebase';
 import { useGameStore } from './src/store/gameStore';
 import AuthScreen from './src/screens/AuthScreen';
 import TabNavigator from './src/components/TabNavigator';
-import type { Raider, Base } from './src/types';
+import type { Fighter, Base } from './src/types';
 
 export default function App() {
   const [authChecked, setAuthChecked] = useState(false);
-  const { raider, setRaider, setBase, reset } = useGameStore();
+  const { fighter, setFighter, setBase, reset } = useGameStore();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        const raiderDoc = await getDoc(doc(db, 'raiders', user.uid));
-        const baseDoc = await getDoc(doc(db, 'bases', user.uid));
-        if (raiderDoc.exists()) setRaider(raiderDoc.data() as Raider);
-        if (baseDoc.exists()) setBase(baseDoc.data() as Base);
+        const fighterDoc = await getDoc(doc(db, 'fighters', user.uid));
+        const baseDoc    = await getDoc(doc(db, 'bases', user.uid));
+        if (fighterDoc.exists()) setFighter(fighterDoc.data() as Fighter);
+        if (baseDoc.exists())    setBase(baseDoc.data() as Base);
       } else {
         reset();
       }
@@ -35,7 +35,7 @@ export default function App() {
     <SafeAreaProvider>
       <NavigationContainer>
         <StatusBar style="light" />
-        {raider ? <TabNavigator /> : <AuthScreen />}
+        {fighter ? <TabNavigator /> : <AuthScreen />}
       </NavigationContainer>
     </SafeAreaProvider>
   );

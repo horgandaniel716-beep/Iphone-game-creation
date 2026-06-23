@@ -26,7 +26,7 @@ const RARITY_COLOR = {
 const MAX_DEMONS = 5;
 
 export default function BaseScreen() {
-  const { raider, base, addDemon, removeDemon, addCurrency } = useGameStore();
+  const { fighter: raider, base, addDemon, removeDemon, addCurrency } = useGameStore();
   const [summonPrompt, setSummonPrompt] = useState('');
   const [summoning, setSummoning] = useState(false);
   const [selectedDemon, setSelectedDemon] = useState<Demon | null>(null);
@@ -55,11 +55,11 @@ export default function BaseScreen() {
       addCurrency(-SUMMON_COST);
 
       // Persist to Firestore
-      if (raider.userId !== 'bot') {
-        await updateDoc(doc(db, 'bases', raider.userId), {
+      if (raider?.userId !== 'bot') {
+        await updateDoc(doc(db, 'bases', raider?.userId), {
           demons: [...base.demons, demon],
         });
-        await updateDoc(doc(db, 'raiders', raider.userId), {
+        await updateDoc(doc(db, 'fighters', raider?.userId), {
           currency: raider.currency - SUMMON_COST,
         });
       }
@@ -84,9 +84,9 @@ export default function BaseScreen() {
         style: 'destructive',
         onPress: async () => {
           removeDemon(demonId);
-          if (raider && raider.userId !== 'bot') {
+          if (raider && raider?.userId !== 'bot') {
             const remaining = base?.demons.filter((d) => d.id !== demonId) ?? [];
-            await updateDoc(doc(db, 'bases', raider.userId), { demons: remaining });
+            await updateDoc(doc(db, 'bases', raider?.userId), { demons: remaining });
           }
         },
       },

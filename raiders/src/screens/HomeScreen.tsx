@@ -1,15 +1,9 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-} from 'react-native';
-import { useGameStore } from '../store/gameStore';
-import { auth } from '../lib/firebase';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { signOut } from 'firebase/auth';
+import { auth } from '../lib/firebase';
+import { useGameStore } from '../store/gameStore';
+import { getCharacter } from '../lib/characters';
 
 const RARITY_COLOR = {
   common: '#aaa',
@@ -19,14 +13,11 @@ const RARITY_COLOR = {
 };
 
 export default function HomeScreen() {
-  const { raider, base, battleHistory } = useGameStore();
+  const { fighter, base, battleHistory } = useGameStore();
+  if (!fighter) return null;
 
-  if (!raider) return null;
-
-  const xpPercent = Math.min(
-    (raider.xp / (500 * raider.level)) * 100,
-    100
-  );
+  const char = getCharacter(fighter.selectedCharacter);
+  const xpPercent = Math.min((fighter.xp / (500 * fighter.level)) * 100, 100);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -34,73 +25,64 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Welcome back,</Text>
-          <Text style={styles.name}>{raider.name}</Text>
+          <Text style={styles.name}>{fighter.name}</Text>
         </View>
         <TouchableOpacity onPress={() => signOut(auth)}>
           <Text style={styles.signOut}>Sign Out</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Raider Card */}
-      <View style={styles.raiderCard}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarEmoji}>🧍</Text>
-        </View>
-        <View style={styles.raiderInfo}>
-          <Text style={styles.levelBadge}>LVL {raider.level}</Text>
-          <View style={styles.xpBarBg}>
-            <View style={[styles.xpBarFill, { width: `${xpPercent}%` }]} />
+      {/* Fighter Card */}
+      <View style={[styles.fighterCard, { borderColor: char.primaryColor + '55' }]}>
+        <Text style={styles.charIcon}>{char.icon}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.charName, { color: char.primaryColor }]}>{char.name}</Text>
+          <Text style={styles.charSubtitle}>{char.subtitle}</Text>
+          <View style={styles.levelRow}>
+            <Text style={styles.levelText}>LVL {fighter.level}</Text>
+            <View style={styles.xpBarBg}>
+              <View style={[styles.xpBarFill, { width: `${xpPercent}%`, backgroundColor: char.primaryColor }]} />
+            </View>
+            <Text style={styles.xpText}>{fighter.xp}/{500 * fighter.level}</Text>
           </View>
-          <Text style={styles.xpText}>
-            {raider.xp} / {500 * raider.level} XP
-          </Text>
         </View>
       </View>
 
       {/* Stats Row */}
       <View style={styles.statsRow}>
-        <StatBox label="💰 Gold" value={raider.currency.toLocaleString()} />
-        <StatBox label="⚔️ Wins" value={String(raider.wins)} />
-        <StatBox label="🛡 Losses" value={String(raider.losses)} />
-        <StatBox label="🏴 Raids" value={String(raider.raids)} />
+        <StatBox label="💰 Gold"  value={fighter.currency.toLocaleString()} />
+        <StatBox label="⚔️ Wins"  value={String(fighter.wins)} />
+        <StatBox label="💀 Losses" value={String(fighter.losses)} />
+        <StatBox label="📊 W/R"   value={fighter.wins + fighter.losses > 0
+          ? Math.round((fighter.wins / (fighter.wins + fighter.losses)) * 100) + '%'
+          : '--'} />
       </View>
 
-      {/* Combat Stats */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>COMBAT STATS</Text>
-        <View style={styles.combatGrid}>
-          <CombatStat label="❤️ HP" value={raider.stats.health} max={300} color="#e74c3c" />
-          <CombatStat label="⚔️ ATK" value={raider.stats.attack} max={100} color="#e8c84a" />
-          <CombatStat label="🛡 DEF" value={raider.stats.defense} max={100} color="#4a9eff" />
-          <CombatStat label="💨 SPD" value={raider.stats.speed} max={200} color="#2ecc71" />
-        </View>
+      {/* Special Move */}
+      <View style={[styles.section, { borderColor: char.primaryColor + '33' }]}>
+        <Text style={styles.sectionTitle}>SIGNATURE MOVE</Text>
+        <Text style={[styles.specialName, { color: char.accentColor }]}>
+          ✦ {char.specialName}
+        </Text>
+        <Text style={styles.specialDesc}>{char.specialDesc}</Text>
       </View>
 
-      {/* Demon Guard */}
+      {/* Base Guardians */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
           BASE GUARDIANS ({base?.demons.length ?? 0})
         </Text>
-        {base?.demons.length === 0 ? (
-          <Text style={styles.emptyText}>
-            No demons assigned. Go to your Base to summon guardians.
-          </Text>
+        {!base?.demons.length ? (
+          <Text style={styles.emptyText}>No guardians. Summon AI demons in your Base tab.</Text>
         ) : (
-          base?.demons.map((demon) => (
+          base.demons.map((demon) => (
             <View key={demon.id} style={styles.demonRow}>
-              <View
-                style={[
-                  styles.demonDot,
-                  { backgroundColor: RARITY_COLOR[demon.rarity] },
-                ]}
-              />
+              <View style={[styles.demonDot, { backgroundColor: RARITY_COLOR[demon.rarity] }]} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.demonName}>{demon.name}</Text>
                 <Text style={styles.demonOrigin}>From {demon.origin}</Text>
               </View>
-              <Text
-                style={[styles.rarityBadge, { color: RARITY_COLOR[demon.rarity] }]}
-              >
+              <Text style={[styles.rarityBadge, { color: RARITY_COLOR[demon.rarity] }]}>
                 {demon.rarity.toUpperCase()}
               </Text>
             </View>
@@ -111,15 +93,15 @@ export default function HomeScreen() {
       {/* Recent Battles */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>RECENT BATTLES</Text>
-        {battleHistory.length === 0 ? (
-          <Text style={styles.emptyText}>No battles yet. Hit the Arena!</Text>
+        {!battleHistory.length ? (
+          <Text style={styles.emptyText}>No battles yet. Enter the Arena!</Text>
         ) : (
           battleHistory.slice(0, 5).map((b, i) => (
             <View key={i} style={styles.battleRow}>
               <Text style={b.won ? styles.winLabel : styles.lossLabel}>
                 {b.won ? 'WIN' : 'LOSS'}
               </Text>
-              <Text style={styles.battleOpponent}>vs {b.opponentName}</Text>
+              <Text style={styles.battleOpp}>vs {b.opponentName}</Text>
               <Text style={styles.battleReward}>+{b.currencyEarned}g</Text>
             </View>
           ))
@@ -138,35 +120,6 @@ function StatBox({ label, value }: { label: string; value: string }) {
   );
 }
 
-function CombatStat({
-  label,
-  value,
-  max,
-  color,
-}: {
-  label: string;
-  value: number;
-  max: number;
-  color: string;
-}) {
-  return (
-    <View style={styles.combatStat}>
-      <View style={styles.combatStatHeader}>
-        <Text style={styles.combatLabel}>{label}</Text>
-        <Text style={[styles.combatValue, { color }]}>{value}</Text>
-      </View>
-      <View style={styles.combatBarBg}>
-        <View
-          style={[
-            styles.combatBarFill,
-            { width: `${Math.min((value / max) * 100, 100)}%`, backgroundColor: color },
-          ]}
-        />
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0a0f' },
   content: { padding: 20, paddingBottom: 40 },
@@ -176,94 +129,50 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 20,
   },
-  greeting: { color: '#666', fontSize: 13 },
+  greeting: { color: '#555', fontSize: 12 },
   name: { color: '#fff', fontSize: 24, fontWeight: '800' },
   signOut: { color: '#e8c84a', fontSize: 13, marginTop: 4 },
-  raiderCard: {
+  fighterCard: {
     backgroundColor: '#12121a',
     borderRadius: 16,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 14,
     borderWidth: 1,
-    borderColor: '#2a2a3a',
-    marginBottom: 16,
+    marginBottom: 14,
   },
-  avatarCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#1e1e2e',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  avatarEmoji: { fontSize: 32 },
-  raiderInfo: { flex: 1 },
-  levelBadge: {
-    color: '#e8c84a',
-    fontWeight: '800',
-    fontSize: 18,
-    marginBottom: 8,
-  },
-  xpBarBg: {
-    height: 6,
-    backgroundColor: '#2a2a3a',
-    borderRadius: 3,
-    marginBottom: 4,
-  },
-  xpBarFill: {
-    height: 6,
-    backgroundColor: '#e8c84a',
-    borderRadius: 3,
-  },
-  xpText: { color: '#666', fontSize: 11 },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
+  charIcon: { fontSize: 44 },
+  charName: { fontSize: 20, fontWeight: '900', letterSpacing: 2 },
+  charSubtitle: { color: '#555', fontSize: 11, marginBottom: 8 },
+  levelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  levelText: { color: '#e8c84a', fontWeight: '700', fontSize: 13, width: 46 },
+  xpBarBg: { flex: 1, height: 5, backgroundColor: '#2a2a3a', borderRadius: 3 },
+  xpBarFill: { height: 5, borderRadius: 3 },
+  xpText: { color: '#444', fontSize: 10, width: 50 },
+  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   statBox: {
     flex: 1,
     backgroundColor: '#12121a',
     borderRadius: 12,
-    padding: 12,
+    padding: 10,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#2a2a3a',
   },
-  statValue: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  statLabel: { color: '#555', fontSize: 10, marginTop: 2 },
+  statValue: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  statLabel: { color: '#444', fontSize: 9, marginTop: 2 },
   section: {
     backgroundColor: '#12121a',
     borderRadius: 16,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#2a2a3a',
   },
-  sectionTitle: {
-    color: '#555',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 2,
-    marginBottom: 12,
-  },
-  combatGrid: { gap: 10 },
-  combatStat: {},
-  combatStatHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  combatLabel: { color: '#aaa', fontSize: 13 },
-  combatValue: { fontWeight: '700', fontSize: 13 },
-  combatBarBg: {
-    height: 4,
-    backgroundColor: '#2a2a3a',
-    borderRadius: 2,
-  },
-  combatBarFill: { height: 4, borderRadius: 2 },
+  sectionTitle: { color: '#444', fontSize: 10, letterSpacing: 2, marginBottom: 10 },
+  specialName: { fontSize: 15, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
+  specialDesc: { color: '#666', fontSize: 13, lineHeight: 18 },
   demonRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -271,16 +180,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#1e1e2e',
   },
-  demonDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 12,
-  },
+  demonDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
   demonName: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  demonOrigin: { color: '#555', fontSize: 11 },
+  demonOrigin: { color: '#444', fontSize: 11 },
   rarityBadge: { fontSize: 10, fontWeight: '700' },
-  emptyText: { color: '#444', fontSize: 13, textAlign: 'center', paddingVertical: 12 },
+  emptyText: { color: '#333', fontSize: 13, textAlign: 'center', paddingVertical: 10 },
   battleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -288,18 +192,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#1e1e2e',
   },
-  winLabel: {
-    color: '#2ecc71',
-    fontWeight: '800',
-    fontSize: 12,
-    width: 40,
-  },
-  lossLabel: {
-    color: '#e74c3c',
-    fontWeight: '800',
-    fontSize: 12,
-    width: 40,
-  },
-  battleOpponent: { color: '#aaa', flex: 1, fontSize: 13 },
+  winLabel: { color: '#2ecc71', fontWeight: '800', fontSize: 11, width: 40 },
+  lossLabel: { color: '#e74c3c', fontWeight: '800', fontSize: 11, width: 40 },
+  battleOpp: { color: '#888', flex: 1, fontSize: 13 },
   battleReward: { color: '#e8c84a', fontSize: 13, fontWeight: '600' },
 });
