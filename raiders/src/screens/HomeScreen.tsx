@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable } from 'react-native';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useGameStore } from '../store/gameStore';
@@ -7,14 +7,42 @@ import { getCharacter } from '../lib/characters';
 import { getRankInfo, getRankDisplayString } from '../lib/ranking';
 
 const RARITY_COLOR = {
-  common: '#aaa',
+  common: '#888',
   rare: '#4a9eff',
   epic: '#b44aff',
   legendary: '#ff9000',
 };
 
+// Build variant detection based on unlocked moves
+const BUILD_VARIANTS = [
+  { id: 'street_brawler',  name: 'STREET BRAWLER',  desc: 'Raw power, no tricks',       color: '#e74c3c', keys: ['heavy_slam','jab','low_kick'],          req: 3  },
+  { id: 'combo_artist',    name: 'COMBO ARTIST',     desc: 'Chains that never end',       color: '#e8c84a', keys: ['jab','combo_chain'],                    req: 2  },
+  { id: 'speedster',       name: 'SPEEDSTER',        desc: 'Blink and you miss it',       color: '#4fc3f7', keys: ['low_kick'],                             req: 1  },
+  { id: 'iron_wall',       name: 'IRON WALL',        desc: 'You don\'t break this',       color: '#95a5a6', keys: [],                                       req: 0  },
+  { id: 'ghost',           name: 'PHANTOM',          desc: 'There, then gone',            color: '#ce93d8', keys: [],                                       req: 0  },
+  { id: 'berserker',       name: 'BERSERKER',        desc: 'No defense needed',           color: '#ff4400', keys: [],                                       req: 0  },
+];
+
+function detectVariant(unlockedMoves: string[], wins: number, losses: number) {
+  if (wins >= 50) return { name: 'GOD TIER', desc: 'Untouchable', color: '#ff9000' };
+  if (wins >= 20 && losses < 5) return { name: 'CLEAN DEMON', desc: 'Perfect form', color: '#b44aff' };
+  if (unlockedMoves.length >= 15) return BUILD_VARIANTS[1]; // combo artist
+  if (unlockedMoves.length >= 8) return BUILD_VARIANTS[0];  // street brawler
+  return { name: 'ROOKIE', desc: 'Just getting started', color: '#555' };
+}
+
+// Mock social feed
+const MOCK_FEED = [
+  { user: 'VENOM_XIII', action: 'dropped a 14 hit combo', char: '🐍', color: '#2ecc71', time: '2m ago' },
+  { user: 'TITANFALL',  action: 'went 7-0 streak in Diamond',  char: '🏔️', color: '#4a9eff', time: '8m ago' },
+  { user: 'GHOSTSTEP',  action: 'got a FLAWLESS victory',    char: '👻', color: '#b44aff', time: '14m ago' },
+  { user: 'APEX_GOD',   action: 'unlocked OVERPOWERED tier', char: '⚡', color: '#ff9000', time: '1h ago' },
+];
+
 export default function HomeScreen() {
   const { fighter, base, battleHistory } = useGameStore();
+  const [feedVisible, setFeedVisible] = useState(true);
+
   if (!fighter) return null;
 
   const char = getCharacter(fighter.selectedCharacter);
@@ -24,24 +52,42 @@ export default function HomeScreen() {
   const rankDisplay = rank ? getRankDisplayString(rank) : '🥉 Bronze 4';
   const totalGames = fighter.wins + fighter.losses;
   const winRate = totalGames > 0 ? Math.round((fighter.wins / totalGames) * 100) : 0;
+  const variant = detectVariant(fighter.unlockedMoves ?? [], fighter.wins, fighter.losses);
+  const isFamous = fighter.wins >= 10;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Header */}
-      <View style={styles.header}>
+
+      {/* ── TOP BAR ─────────────────────────────────────────── */}
+      <View style={styles.topBar}>
         <View>
-          <Text style={styles.greeting}>Welcome back,</Text>
+          <Text style={styles.greeting}>WELCOME BACK</Text>
           <Text style={styles.name}>{fighter.name}</Text>
           {fighter.tag ? <Text style={styles.tag}>#{fighter.tag}</Text> : null}
         </View>
-        <TouchableOpacity onPress={() => signOut(auth)}>
-          <Text style={styles.signOut}>Sign Out</Text>
+        <TouchableOpacity style={styles.signOutBtn} onPress={() => signOut(auth)}>
+          <Text style={styles.signOutText}>SIGN OUT</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Rank Banner */}
+      {/* ── FAME BANNER ─────────────────────────────────────── */}
+      {isFamous && (
+        <View style={styles.fameBanner}>
+          <Text style={styles.fameIcon}>🔥</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fameLabel}>REPUTATION</Text>
+            <Text style={styles.fameName}>{fighter.name.toUpperCase()} IS KNOWN</Text>
+          </View>
+          <View style={styles.followBox}>
+            <Text style={styles.followCount}>{fighter.wins * 12}</Text>
+            <Text style={styles.followLabel}>FOLLOWERS</Text>
+          </View>
+        </View>
+      )}
+
+      {/* ── RANK BANNER ─────────────────────────────────────── */}
       {rankInfo && (
-        <View style={[styles.rankBanner, { borderColor: rankInfo.color + '55', backgroundColor: rankInfo.color + '11' }]}>
+        <View style={[styles.rankBanner, { borderColor: rankInfo.color + '55', backgroundColor: rankInfo.color + '0d' }]}>
           <Text style={styles.rankIcon}>{rankInfo.icon}</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.rankLabel}>CURRENT RANK</Text>
@@ -54,8 +100,8 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Fighter Card */}
-      <View style={[styles.fighterCard, { borderColor: char.primaryColor + '55' }]}>
+      {/* ── FIGHTER CARD ────────────────────────────────────── */}
+      <View style={[styles.fighterCard, { borderColor: char.primaryColor + '44' }]}>
         <Text style={styles.charIcon}>{char.icon}</Text>
         <View style={{ flex: 1 }}>
           <View style={styles.charTopRow}>
@@ -68,45 +114,65 @@ export default function HomeScreen() {
           <View style={styles.levelRow}>
             <Text style={styles.levelText}>LVL {fighter.level}</Text>
             <View style={styles.xpBarBg}>
-              <View style={[styles.xpBarFill, { width: `${xpPercent}%`, backgroundColor: char.primaryColor }]} />
+              <View style={[styles.xpBarFill, { width: `${xpPercent}%` as any, backgroundColor: char.primaryColor }]} />
             </View>
             <Text style={styles.xpText}>{fighter.xp}/{500 * fighter.level}</Text>
           </View>
         </View>
       </View>
 
-      {/* Stats Row */}
-      <View style={styles.statsRow}>
-        <StatBox label="💰 Gold"  value={fighter.currency.toLocaleString()} />
-        <StatBox label="⚔️ Wins"  value={String(fighter.wins)} />
-        <StatBox label="💀 Losses" value={String(fighter.losses)} />
-        <StatBox label="📊 W/R"   value={totalGames > 0 ? `${winRate}%` : '--'} />
+      {/* ── BUILD VARIANT ───────────────────────────────────── */}
+      <View style={[styles.variantCard, { borderColor: variant.color + '44' }]}>
+        <View style={[styles.variantDot, { backgroundColor: variant.color }]} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.variantLabel}>BUILD VARIANT</Text>
+          <Text style={[styles.variantName, { color: variant.color }]}>{variant.name}</Text>
+          <Text style={styles.variantDesc}>{variant.desc}</Text>
+        </View>
+        <Text style={styles.variantBadge}>◆</Text>
       </View>
 
-      {/* Weapon Slots */}
+      {/* ── STATS ───────────────────────────────────────────── */}
+      <View style={styles.statsGrid}>
+        <StatBox label="💰 GOLD"   value={fighter.currency.toLocaleString()} />
+        <StatBox label="⚔️ WINS"   value={String(fighter.wins)} />
+        <StatBox label="💀 LOSSES" value={String(fighter.losses)} />
+        <StatBox label="📊 W/RATE" value={totalGames > 0 ? `${winRate}%` : '--'} />
+      </View>
+
+      {/* ── WEAPON LOADOUT ──────────────────────────────────── */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>WEAPON LOADOUT</Text>
         <View style={styles.weaponRow}>
-          <WeaponSlot label="LEFT HAND" weaponId={fighter.weaponSlot1 ?? null} />
-          <WeaponSlot label="RIGHT HAND" weaponId={fighter.weaponSlot2 ?? null} />
+          <WeaponSlot label="LEFT" weaponId={fighter.weaponSlot1 ?? null} />
+          <WeaponSlot label="RIGHT" weaponId={fighter.weaponSlot2 ?? null} />
         </View>
       </View>
 
-      {/* Special Move */}
-      <View style={[styles.section, { borderColor: char.primaryColor + '33' }]}>
-        <Text style={styles.sectionTitle}>SIGNATURE MOVE</Text>
-        <Text style={[styles.specialName, { color: char.accentColor }]}>✦ {char.specialName}</Text>
-        <Text style={styles.specialDesc}>{char.specialDesc}</Text>
-        <View style={styles.divider} />
-        <Text style={[styles.superName, { color: char.primaryColor }]}>★ {char.superName}</Text>
-        <Text style={styles.specialDesc}>{char.superDesc}</Text>
+      {/* ── SIGNATURE MOVES ─────────────────────────────────── */}
+      <View style={[styles.section, { borderColor: char.primaryColor + '22' }]}>
+        <Text style={styles.sectionTitle}>SIGNATURE MOVES</Text>
+        <View style={styles.sigRow}>
+          <View style={[styles.sigPill, { backgroundColor: char.accentColor + '22', borderColor: char.accentColor + '44' }]}>
+            <Text style={[styles.sigIcon, { color: char.accentColor }]}>✦</Text>
+            <View>
+              <Text style={[styles.sigName, { color: char.accentColor }]}>{char.specialName}</Text>
+              <Text style={styles.sigDesc}>{char.specialDesc}</Text>
+            </View>
+          </View>
+          <View style={[styles.sigPill, { backgroundColor: char.primaryColor + '22', borderColor: char.primaryColor + '44', marginTop: 8 }]}>
+            <Text style={[styles.sigIcon, { color: '#ff4400' }]}>★</Text>
+            <View>
+              <Text style={[styles.sigName, { color: char.primaryColor }]}>{char.superName}</Text>
+              <Text style={styles.sigDesc}>{char.superDesc}</Text>
+            </View>
+          </View>
+        </View>
       </View>
 
-      {/* Moves */}
+      {/* ── UNLOCKED MOVES ──────────────────────────────────── */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          MOVES UNLOCKED ({fighter.unlockedMoves?.length ?? 2})
-        </Text>
+        <Text style={styles.sectionTitle}>MOVES UNLOCKED ({fighter.unlockedMoves?.length ?? 2})</Text>
         <View style={styles.movesGrid}>
           {(fighter.unlockedMoves ?? ['jab', 'low_kick']).slice(0, 8).map((moveId) => (
             <View key={moveId} style={styles.movePill}>
@@ -114,18 +180,18 @@ export default function HomeScreen() {
             </View>
           ))}
           {(fighter.unlockedMoves?.length ?? 2) > 8 && (
-            <View style={[styles.movePill, { backgroundColor: '#2a2a3a' }]}>
+            <View style={[styles.movePill, { backgroundColor: '#1e1e2e' }]}>
               <Text style={styles.movePillText}>+{(fighter.unlockedMoves?.length ?? 2) - 8} MORE</Text>
             </View>
           )}
         </View>
       </View>
 
-      {/* Base Guardians */}
+      {/* ── BASE GUARDIANS ──────────────────────────────────── */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>BASE GUARDIANS ({base?.demons.length ?? 0})</Text>
+        <Text style={styles.sectionTitle}>BASE GUARDIANS ({base?.demons.length ?? 0}/5)</Text>
         {!base?.demons.length ? (
-          <Text style={styles.emptyText}>No guardians. Summon AI demons in your Base tab.</Text>
+          <Text style={styles.emptyText}>No guardians yet. Summon AI demons in the Base tab.</Text>
         ) : (
           base.demons.map((demon) => (
             <View key={demon.id} style={styles.demonRow}>
@@ -142,15 +208,40 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* Recent Battles */}
+      {/* ── SOCIAL FEED ─────────────────────────────────────── */}
+      <View style={styles.section}>
+        <Pressable style={styles.sectionHeader} onPress={() => setFeedVisible(!feedVisible)}>
+          <Text style={styles.sectionTitle}>WHAT'S POPPING 🔥</Text>
+          <Text style={styles.sectionToggle}>{feedVisible ? '▲' : '▼'}</Text>
+        </Pressable>
+        {feedVisible && MOCK_FEED.map((item, i) => (
+          <View key={i} style={styles.feedRow}>
+            <Text style={styles.feedChar}>{item.char}</Text>
+            <View style={{ flex: 1 }}>
+              <Text>
+                <Text style={[styles.feedUser, { color: item.color }]}>{item.user} </Text>
+                <Text style={styles.feedAction}>{item.action}</Text>
+              </Text>
+              <Text style={styles.feedTime}>{item.time}</Text>
+            </View>
+          </View>
+        ))}
+        <TouchableOpacity style={styles.feedMoreBtn}>
+          <Text style={styles.feedMoreText}>FULL FEED — COMING SOON</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ── RECENT BATTLES ──────────────────────────────────── */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>RECENT BATTLES</Text>
         {!battleHistory.length ? (
-          <Text style={styles.emptyText}>No battles yet. Enter the Arena!</Text>
+          <Text style={styles.emptyText}>No battles yet. Step into the Arena.</Text>
         ) : (
           battleHistory.slice(0, 5).map((b, i) => (
             <View key={i} style={styles.battleRow}>
-              <Text style={b.won ? styles.winLabel : styles.lossLabel}>{b.won ? 'WIN' : 'LOSS'}</Text>
+              <View style={[styles.battleResult, { backgroundColor: b.won ? '#2ecc7122' : '#e74c3c22' }]}>
+                <Text style={b.won ? styles.winLabel : styles.lossLabel}>{b.won ? 'W' : 'L'}</Text>
+              </View>
               <Text style={styles.battleOpp}>vs {b.opponentName}</Text>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.battleReward}>+{b.currencyEarned}g</Text>
@@ -164,6 +255,21 @@ export default function HomeScreen() {
           ))
         )}
       </View>
+
+      {/* ── DOJO ────────────────────────────────────────────── */}
+      <TouchableOpacity style={styles.dojoCard}>
+        <View style={styles.dojoLeft}>
+          <Text style={styles.dojoIcon}>🏯</Text>
+          <View>
+            <Text style={styles.dojoTitle}>CLAN DOJO</Text>
+            <Text style={styles.dojoDesc}>Train. Host. Dominate.</Text>
+          </View>
+        </View>
+        <View style={styles.dojoBadge}>
+          <Text style={styles.dojoBadgeText}>COMING SOON</Text>
+        </View>
+      </TouchableOpacity>
+
     </ScrollView>
   );
 }
@@ -191,83 +297,156 @@ function StatBox({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a0f' },
-  content: { padding: 20, paddingBottom: 40 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
-  greeting: { color: '#555', fontSize: 12 },
-  name: { color: '#fff', fontSize: 24, fontWeight: '800' },
-  tag: { color: '#444', fontSize: 11, marginTop: 2 },
-  signOut: { color: '#e8c84a', fontSize: 13, marginTop: 4 },
-  rankBanner: {
-    borderRadius: 16, borderWidth: 1, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12,
+  container: { flex: 1, backgroundColor: '#080810' },
+  content: { padding: 18, paddingBottom: 50, gap: 10 },
+
+  // Top bar
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
+  greeting: { color: '#333', fontSize: 9, letterSpacing: 3 },
+  name: { color: '#fff', fontSize: 26, fontWeight: '900', letterSpacing: 1 },
+  tag: { color: '#333', fontSize: 10, marginTop: 1 },
+  signOutBtn: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#12121a', borderWidth: 1, borderColor: '#1e1e2e' },
+  signOutText: { color: '#444', fontSize: 10, letterSpacing: 1 },
+
+  // Fame
+  fameBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#ff440011', borderRadius: 14, padding: 12,
+    borderWidth: 1, borderColor: '#ff440033',
   },
-  rankIcon: { fontSize: 32 },
-  rankLabel: { color: '#444', fontSize: 9, letterSpacing: 2, marginBottom: 2 },
-  rankDisplay: { fontSize: 18, fontWeight: '900', letterSpacing: 1 },
+  fameIcon: { fontSize: 26 },
+  fameLabel: { color: '#ff4400', fontSize: 9, letterSpacing: 2 },
+  fameName: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  followBox: { alignItems: 'center' },
+  followCount: { color: '#ff4400', fontSize: 20, fontWeight: '900' },
+  followLabel: { color: '#444', fontSize: 8, letterSpacing: 1 },
+
+  // Rank
+  rankBanner: { borderRadius: 14, borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  rankIcon: { fontSize: 28 },
+  rankLabel: { color: '#333', fontSize: 8, letterSpacing: 2, marginBottom: 2 },
+  rankDisplay: { fontSize: 17, fontWeight: '900', letterSpacing: 1 },
   mmrBox: { alignItems: 'center' },
-  mmrValue: { fontSize: 22, fontWeight: '900' },
-  mmrLabel: { color: '#444', fontSize: 9, letterSpacing: 1 },
+  mmrValue: { fontSize: 20, fontWeight: '900' },
+  mmrLabel: { color: '#333', fontSize: 8, letterSpacing: 1 },
+
+  // Fighter card
   fighterCard: {
-    backgroundColor: '#12121a', borderRadius: 16, padding: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, marginBottom: 14,
+    backgroundColor: '#0e0e18', borderRadius: 16, padding: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1,
   },
   charIcon: { fontSize: 44 },
   charTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
-  charName: { fontSize: 20, fontWeight: '900', letterSpacing: 2 },
-  rarityPill: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  rarityText: { fontSize: 8, fontWeight: '800', letterSpacing: 1 },
-  charSubtitle: { color: '#555', fontSize: 11, marginBottom: 8 },
+  charName: { fontSize: 18, fontWeight: '900', letterSpacing: 2 },
+  rarityPill: { borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
+  rarityText: { fontSize: 7, fontWeight: '800', letterSpacing: 1 },
+  charSubtitle: { color: '#444', fontSize: 10, marginBottom: 7 },
   levelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  levelText: { color: '#e8c84a', fontWeight: '700', fontSize: 13, width: 46 },
-  xpBarBg: { flex: 1, height: 5, backgroundColor: '#2a2a3a', borderRadius: 3 },
-  xpBarFill: { height: 5, borderRadius: 3 },
-  xpText: { color: '#444', fontSize: 10, width: 50 },
-  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  levelText: { color: '#e8c84a', fontWeight: '800', fontSize: 12, width: 42 },
+  xpBarBg: { flex: 1, height: 4, backgroundColor: '#1e1e2e', borderRadius: 2 },
+  xpBarFill: { height: 4, borderRadius: 2 },
+  xpText: { color: '#333', fontSize: 9, width: 48 },
+
+  // Build variant
+  variantCard: {
+    backgroundColor: '#0e0e18', borderRadius: 14, padding: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1,
+  },
+  variantDot: { width: 12, height: 12, borderRadius: 6 },
+  variantLabel: { color: '#333', fontSize: 8, letterSpacing: 2, marginBottom: 2 },
+  variantName: { fontSize: 16, fontWeight: '900', letterSpacing: 2 },
+  variantDesc: { color: '#444', fontSize: 10, marginTop: 1 },
+  variantBadge: { color: '#2a2a3a', fontSize: 20 },
+
+  // Stats
+  statsGrid: { flexDirection: 'row', gap: 8 },
   statBox: {
-    flex: 1, backgroundColor: '#12121a', borderRadius: 12, padding: 10,
-    alignItems: 'center', borderWidth: 1, borderColor: '#2a2a3a',
+    flex: 1, backgroundColor: '#0e0e18', borderRadius: 12, padding: 10,
+    alignItems: 'center', borderWidth: 1, borderColor: '#1a1a28',
   },
-  statValue: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  statLabel: { color: '#444', fontSize: 9, marginTop: 2 },
+  statValue: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  statLabel: { color: '#333', fontSize: 8, marginTop: 2, letterSpacing: 0.5 },
+
+  // Section
   section: {
-    backgroundColor: '#12121a', borderRadius: 16, padding: 16,
-    marginBottom: 14, borderWidth: 1, borderColor: '#2a2a3a',
+    backgroundColor: '#0e0e18', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: '#1a1a28',
   },
-  sectionTitle: { color: '#444', fontSize: 10, letterSpacing: 2, marginBottom: 10 },
-  weaponRow: { flexDirection: 'row', gap: 12 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  sectionTitle: { color: '#333', fontSize: 9, letterSpacing: 2, marginBottom: 10 },
+  sectionToggle: { color: '#333', fontSize: 12 },
+
+  // Weapons
+  weaponRow: { flexDirection: 'row', gap: 10 },
   weaponSlot: {
-    flex: 1, backgroundColor: '#1e1e2e', borderRadius: 10, padding: 12, alignItems: 'center',
-    borderWidth: 1, borderColor: '#2a2a3a',
+    flex: 1, backgroundColor: '#12121a', borderRadius: 10, padding: 12, alignItems: 'center',
+    borderWidth: 1, borderColor: '#1a1a28',
   },
-  weaponSlotLabel: { color: '#444', fontSize: 9, letterSpacing: 1, marginBottom: 4 },
-  weaponSlotName: { color: '#e8c84a', fontSize: 11, fontWeight: '700', textAlign: 'center' },
-  weaponSlotEmpty: { color: '#333', fontSize: 11 },
-  specialName: { fontSize: 15, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
-  superName: { fontSize: 13, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
-  specialDesc: { color: '#666', fontSize: 13, lineHeight: 18 },
-  divider: { height: 1, backgroundColor: '#2a2a3a', marginVertical: 10 },
+  weaponSlotLabel: { color: '#333', fontSize: 8, letterSpacing: 1, marginBottom: 4 },
+  weaponSlotName: { color: '#e8c84a', fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  weaponSlotEmpty: { color: '#252535', fontSize: 10 },
+
+  // Signature moves
+  sigRow: {},
+  sigPill: { borderRadius: 10, borderWidth: 1, padding: 10, flexDirection: 'row', gap: 10, alignItems: 'center' },
+  sigIcon: { fontSize: 18 },
+  sigName: { fontSize: 13, fontWeight: '800', letterSpacing: 1 },
+  sigDesc: { color: '#555', fontSize: 11, marginTop: 1 },
+
+  // Moves
   movesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   movePill: {
-    backgroundColor: '#1e1e2e', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
-    borderWidth: 1, borderColor: '#2a2a3a',
+    backgroundColor: '#12121a', borderRadius: 18, paddingHorizontal: 10, paddingVertical: 4,
+    borderWidth: 1, borderColor: '#1a1a28',
   },
-  movePillText: { color: '#555', fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
+  movePillText: { color: '#444', fontSize: 8, fontWeight: '700', letterSpacing: 0.5 },
+
+  // Demons
   demonRow: {
     flexDirection: 'row', alignItems: 'center', paddingVertical: 8,
-    borderBottomWidth: 1, borderBottomColor: '#1e1e2e',
+    borderBottomWidth: 1, borderBottomColor: '#12121a',
   },
-  demonDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
-  demonName: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  demonOrigin: { color: '#444', fontSize: 11 },
-  rarityBadge: { fontSize: 10, fontWeight: '700' },
-  emptyText: { color: '#333', fontSize: 13, textAlign: 'center', paddingVertical: 10 },
+  demonDot: { width: 9, height: 9, borderRadius: 5, marginRight: 12 },
+  demonName: { color: '#ccc', fontSize: 13, fontWeight: '600' },
+  demonOrigin: { color: '#333', fontSize: 10, marginTop: 1 },
+  rarityBadge: { fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+
+  // Feed
+  feedRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 8,
+    borderBottomWidth: 1, borderBottomColor: '#12121a',
+  },
+  feedChar: { fontSize: 22 },
+  feedUser: { fontWeight: '800', fontSize: 12 },
+  feedAction: { color: '#666', fontSize: 12 },
+  feedTime: { color: '#2a2a3a', fontSize: 10, marginTop: 2 },
+  feedMoreBtn: { paddingTop: 10, alignItems: 'center' },
+  feedMoreText: { color: '#2a2a3a', fontSize: 9, letterSpacing: 2 },
+
+  emptyText: { color: '#252535', fontSize: 12, textAlign: 'center', paddingVertical: 8 },
+
+  // Battles
   battleRow: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 8,
-    borderBottomWidth: 1, borderBottomColor: '#1e1e2e',
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 12,
+    borderBottomWidth: 1, borderBottomColor: '#12121a',
   },
-  winLabel: { color: '#2ecc71', fontWeight: '800', fontSize: 11, width: 40 },
-  lossLabel: { color: '#e74c3c', fontWeight: '800', fontSize: 11, width: 40 },
-  battleOpp: { color: '#888', flex: 1, fontSize: 13 },
-  battleReward: { color: '#e8c84a', fontSize: 13, fontWeight: '600' },
-  mmrChange: { fontSize: 10, fontWeight: '700' },
+  battleResult: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  winLabel: { color: '#2ecc71', fontWeight: '900', fontSize: 12 },
+  lossLabel: { color: '#e74c3c', fontWeight: '900', fontSize: 12 },
+  battleOpp: { color: '#666', flex: 1, fontSize: 12 },
+  battleReward: { color: '#e8c84a', fontSize: 12, fontWeight: '600' },
+  mmrChange: { fontSize: 9, fontWeight: '700' },
+
+  // Dojo
+  dojoCard: {
+    backgroundColor: '#0e0e18', borderRadius: 14, padding: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderWidth: 1, borderColor: '#1a1a28',
+  },
+  dojoLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  dojoIcon: { fontSize: 32 },
+  dojoTitle: { color: '#fff', fontSize: 14, fontWeight: '900', letterSpacing: 2 },
+  dojoDesc: { color: '#444', fontSize: 10, marginTop: 2 },
+  dojoBadge: { backgroundColor: '#1a1a28', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  dojoBadgeText: { color: '#333', fontSize: 8, letterSpacing: 1, fontWeight: '800' },
 });
