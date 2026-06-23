@@ -197,9 +197,80 @@ function makeFighter(charDef, fighterData, side) {
   };
 }
 
+// ─── TRINKET ENGINE ───────────────────────────────────────────────────────────
+const TRINKET_DB = {
+  bloodstone:   { effect:'lifesteal',    value:2    },
+  lucky_coin:   { effect:'dodge_chance', value:0.1  },
+  ghost_ring:   { effect:'ghost_shield', value:1    },
+  iron_skin:    { effect:'dmg_reduce',   value:0.08 },
+  speed_drug:   { effect:'speed_boost',  value:12   },
+  rage_pill:    { effect:'low_hp_atk',   value:8    },
+  mirror_shard: { effect:'dmg_reflect',  value:0.15 },
+  bone_charm:   { effect:'combo_extend', value:30   },
+  void_shard:   { effect:'super_rate',   value:1.2  },
+  thunder_bead: { effect:'thunder_every',value:3    },
+  shadow_eye:   { effect:'block_stealth',value:120  },
+  phoenix_ash:  { effect:'revive',       value:0.2  },
+  frozen_tear:  { effect:'heavy_slow',   value:30   },
+  poison_gland: { effect:'light_poison', value:3    },
+  demon_horn:   { effect:'atk_for_def',  value:20   },
+  chaos_gem:    { effect:'chaos_buff',   value:1    },
+  soul_anchor:  { effect:'no_knockdown', value:1    },
+  rage_crystal: { effect:'rage_stack',   value:5    },
+  void_heart:   { effect:'regen',        value:10   },
+  gods_eye:     { effect:'unblockable',  value:1    },
+  death_wish:   { effect:'death_wish',   value:3    },
+  zero_gravity: { effect:'zero_grav',    value:2    },
+};
+
+function getTrinketEffect(fighterData, effectKey) {
+  const ids = [fighterData.trinket1, fighterData.trinket2].filter(Boolean);
+  for (const id of ids) {
+    const t = TRINKET_DB[id];
+    if (t && t.effect === effectKey) return t.value;
+  }
+  return null;
+}
+
+function applyTrinketPassives(fighter, fighterData) {
+  // Speed boost
+  const speedBoost = getTrinketEffect(fighterData, 'speed_boost');
+  if (speedBoost) fighter.char = { ...fighter.char, stats: { ...fighter.char.stats, speed: fighter.char.stats.speed + speedBoost } };
+  // Atk-for-def trade (demon_horn)
+  const atkForDef = getTrinketEffect(fighterData, 'atk_for_def');
+  if (atkForDef) {
+    fighter.moves.light.dmg  += atkForDef * 0.35;
+    fighter.moves.heavy.dmg  += atkForDef * 0.65;
+    fighter.moves.kick.dmg   += atkForDef * 0.5;
+    fighter.char = { ...fighter.char, stats: { ...fighter.char.stats, defense: Math.max(0, fighter.char.stats.defense - 15) } };
+  }
+  // Ghost shield (one free block per round)
+  fighter.ghostShieldActive = !!getTrinketEffect(fighterData, 'ghost_shield');
+  // Phoenix ash revive
+  fighter.phoenixReviveAvail = !!getTrinketEffect(fighterData, 'revive');
+  fighter.phoenixReviveUsed  = false;
+  // Regen timer
+  fighter.regenTimer = 0;
+  // Rage crystal stack
+  fighter.rageCrystalStacks = 0;
+  // Thunder bead counter
+  fighter.thunderHitCount = 0;
+  // No knockdown
+  fighter.noKnockdown = !!getTrinketEffect(fighterData, 'no_knockdown');
+  // Zero gravity
+  if (getTrinketEffect(fighterData, 'zero_grav')) fighter.maxJumps = 99;
+  // Void shard super rate
+  fighter.superRateMult = getTrinketEffect(fighterData, 'super_rate') ?? 1.0;
+  // Bone charm combo window
+  const comboExt = getTrinketEffect(fighterData, 'combo_extend');
+  if (comboExt) fighter.comboWindowBonus = comboExt;
+}
+
 // ─── GAME STATE ───────────────────────────────────────────────────────────────
 let player = makeFighter(PLAYER_CHAR, PLAYER_FIGHTER, 'left');
 let opp    = makeFighter(OPP_CHAR,    OPP_FIGHTER,    'right');
+applyTrinketPassives(player, PLAYER_FIGHTER);
+applyTrinketPassives(opp, OPP_FIGHTER);
 let round = 1, playerRoundsWon = 0, oppRoundsWon = 0;
 let roundTimer = ROUND_TIME, roundFrame = 0, roundTimerFrame = 0;
 let gamePhase = 'intro';
@@ -392,6 +463,19 @@ function tickTimers(f){
   if(f.buffAtk>0)   f.buffAtk--;
   if(f.buffSpd>0)   f.buffSpd--;
   f.glowPulse=(f.glowPulse+0.08)%(Math.PI*2);
+  // ── TRINKET TICKS ──
+  // Void heart: regen 10 HP every 3s (180 frames)
+  if(f.regenTimer!==undefined){
+    f.regenTimer++;
+    if(f.regenTimer>=180){ f.regenTimer=0; const fd=f===player?PLAYER_FIGHTER:OPP_FIGHTER; const rv=getTrinketEffect(fd,'regen'); if(rv) f.hp=Math.min(f.maxHp,f.hp+rv); }
+  }
+  // Poison tick
+  if(f.poisoned){
+    f.poisonFrames=(f.poisonFrames||0)-1;
+    if(f.frame%60===0) f.hp=Math.max(0,f.hp-f.poisoned); // dmg per second
+    if(f.poisonFrames<=0){ f.poisoned=0; }
+    spawnSpark(f.x,f.y-80,'#66bb6a');
+  }
   if(f.shieldRegen>0){ f.shieldRegen--; } else {
     f.shield=Math.min(f.maxShield,f.shield+0.08);
   }
@@ -478,12 +562,55 @@ function checkHit(attacker,defender,move){
     if(Math.abs(attacker.specialX-defender.x)>40) return;
     attacker.specialActive=false;
   }
+
+  // ── TRINKET: dodge chance ──
+  const attackerFD = attacker===player ? PLAYER_FIGHTER : OPP_FIGHTER;
+  const defenderFD = defender===player ? PLAYER_FIGHTER : OPP_FIGHTER;
+  const dodgeChance = getTrinketEffect(defenderFD,'dodge_chance');
+  if(dodgeChance && Math.random()<dodgeChance){
+    spawnSpark(defender.x,defender.y-80,'#ffffff');
+    return;
+  }
+
+  // ── TRINKET: ghost shield (block one hit per round) ──
+  if(defender.ghostShieldActive){
+    defender.ghostShieldActive=false;
+    spawnEnergyRing(defender.x,defender.y-60,'#b2dfdb',80);
+    spawnSpark(defender.x,defender.y-80,'#b2dfdb');
+    return;
+  }
+
+  // ── TRINKET: unblockable (gods_eye) ──
+  const unblockable = getTrinketEffect(attackerFD,'unblockable');
   const atkMult = attacker.buffAtk>0 ? 1.5 : 1;
   let dmg = move.dmg * atkMult * (1 - defender.char.stats.defense/300);
-  if(defender.blocking&&defender.grounded){
+
+  // ── TRINKET: damage reduce (iron_skin) ──
+  const dmgReduce = getTrinketEffect(defenderFD,'dmg_reduce');
+  if(dmgReduce) dmg *= (1 - dmgReduce);
+
+  // ── TRINKET: rage pill (+atk when low hp) ──
+  const ragePillAtk = getTrinketEffect(attackerFD,'low_hp_atk');
+  if(ragePillAtk && attacker.hp < attacker.maxHp*0.3) dmg += ragePillAtk;
+
+  // ── TRINKET: rage crystal (stacks atk on being hit) ──
+  const rageCrystalVal = getTrinketEffect(defenderFD,'rage_stack');
+  if(rageCrystalVal){
+    defender.rageCrystalStacks = Math.min(10, (defender.rageCrystalStacks||0)+1);
+    defender.moves.light.dmg += rageCrystalVal * 0.35;
+    defender.moves.heavy.dmg += rageCrystalVal * 0.65;
+  }
+
+  if(defender.blocking&&defender.grounded&&!unblockable){
     dmg*=0.15; defender.blockstun=move.hitstun;
     spawnSpark(defender.x,defender.y-80,'#4fc3f7');
     spawnSlashTrail(attacker.x,attacker.y-60,defender.x,defender.y-60,'#4fc3f7');
+    // ── TRINKET: block stealth (shadow_eye) ──
+    const blockStealth = getTrinketEffect(defenderFD,'block_stealth');
+    if(blockStealth) { defender.invincible=blockStealth; spawnSpark(defender.x,defender.y-80,'#6a1b9a'); }
+    // ── TRINKET: mirror shard (reflect on block) ──
+    const reflect = getTrinketEffect(defenderFD,'dmg_reflect');
+    if(reflect) { attacker.hp=Math.max(0,attacker.hp-dmg*reflect); }
     return;
   }
   if(defender.shield>0){
@@ -492,22 +619,68 @@ function checkHit(attacker,defender,move){
     dmg-=absorbed;
     defender.shieldRegen=180;
   }
+
   defender.hp=Math.max(0,defender.hp-dmg);
+
+  // ── TRINKET: phoenix ash (revive once at 20% hp) ──
+  if(defender.hp<=0 && defender.phoenixReviveAvail && !defender.phoenixReviveUsed){
+    const reviveHp = getTrinketEffect(defenderFD,'revive');
+    defender.hp = defender.maxHp * reviveHp;
+    defender.phoenixReviveUsed = true;
+    screenFlash=20; screenFlashColor='#ff6d00';
+    spawnEnergyRing(defender.x,defender.y-60,'#ff6d00',150);
+  }
+
+  // ── TRINKET: death wish (ATK x3 + invincible 5s when <10% hp) ──
+  const deathWish = getTrinketEffect(defenderFD,'death_wish');
+  if(deathWish && defender.hp < defender.maxHp*0.1 && !(defender.deathWishActive)){
+    defender.deathWishActive=true; defender.invincible=300;
+    defender.moves.light.dmg*=3; defender.moves.heavy.dmg*=3;
+    screenFlash=20; screenFlashColor='#ff0000';
+  }
+
+  // ── TRINKET: lifesteal (bloodstone) ──
+  const lifesteal = getTrinketEffect(attackerFD,'lifesteal');
+  if(lifesteal) attacker.hp=Math.min(attacker.maxHp,attacker.hp+lifesteal);
+
+  // ── TRINKET: light poison (poison_gland) ──
+  if(move.type==='normal'||move.type==='hard'){
+    const poisonDps = getTrinketEffect(attackerFD,'light_poison');
+    if(poisonDps && !defender.poisoned){ defender.poisoned=poisonDps; defender.poisonFrames=180; }
+  }
+
+  // ── TRINKET: heavy slow (frozen_tear) ──
+  if(move.type==='hard'){
+    const heavySlow = getTrinketEffect(attackerFD,'heavy_slow');
+    if(heavySlow) defender.slowed=heavySlow;
+  }
+
+  // ── TRINKET: thunder bead (every 3rd hit shocks) ──
+  const thunderEvery = getTrinketEffect(attackerFD,'thunder_every');
+  if(thunderEvery){
+    attacker.thunderHitCount=(attacker.thunderHitCount||0)+1;
+    if(attacker.thunderHitCount>=thunderEvery){
+      attacker.thunderHitCount=0; defender.hitstun=Math.max(defender.hitstun,18);
+      spawnSpark(defender.x,defender.y-60,'#ffcc00');
+    }
+  }
+
   defender.hitstun=move.hitstun;
+  if(defender.slowed>0){ defender.hitstun+=15; defender.slowed--; }
   defender.x+=-attacker.facing*move.pushback;
   defender.x=Math.max(40,Math.min(W-40,defender.x));
   if(attacker.comboTimer>0) attacker.comboCount++;
   else attacker.comboCount=1;
-  attacker.comboTimer=COMBO_WINDOW;
-  // build super on hit
-  attacker.superMeter=Math.min(attacker.maxSuper,attacker.superMeter+40);
-  defender.superMeter=Math.min(defender.maxSuper,defender.superMeter+20);
+  attacker.comboTimer = COMBO_WINDOW + (attacker.comboWindowBonus||0);
+  // build super on hit — void shard multiplier
+  attacker.superMeter=Math.min(attacker.maxSuper,attacker.superMeter+40*attacker.superRateMult);
+  defender.superMeter=Math.min(defender.maxSuper,defender.superMeter+20*defender.superRateMult);
   screenShake=move.pushback>20?10:4;
   spawnSpark(defender.x,defender.y-80,attacker.char.accentColor);
   spawnParticles(defender.x,defender.y-80,attacker.char.accentColor,8);
   spawnSlashTrail(attacker.x,attacker.y-55,defender.x,defender.y-55,attacker.char.glowColor);
   if(move.type==='hard'||move.type==='super'){
-    if(defender.hp>0){defender.vy=-8;defender.grounded=false;defender.knockdown=40;}
+    if(!defender.noKnockdown&&defender.hp>0){defender.vy=-8;defender.grounded=false;defender.knockdown=40;}
     if(move.type==='super'){
       screenFlash=12; screenFlashColor=attacker.char.glowColor;
       spawnEnergyRing(defender.x,defender.y-60,attacker.char.accentColor,120);
@@ -807,7 +980,18 @@ function drawFighter(f){
     ctx.beginPath(); ctx.arc(0,-50-crouchOffset,30,0,Math.PI*2); ctx.stroke();
   }
 
-  ctx.shadowColor=f.char.glowColor; ctx.shadowBlur=flash?30:(isActive?20:12);
+  // Poison tint
+  if(f.poisoned){ ctx.fillStyle='#66ff6644'; ctx.beginPath(); ctx.arc(0,-50-crouchOffset,50,0,Math.PI*2); ctx.fill(); }
+  // Death wish fire aura
+  if(f.deathWishActive){
+    ctx.shadowColor='#ff2200'; ctx.shadowBlur=60;
+    for(let i=0;i<4;i++){
+      const a=roundFrame*0.12+i*1.57;
+      ctx.strokeStyle='#ff440088'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.arc(0,-55-crouchOffset,50+Math.sin(a)*8,a,a+1.0); ctx.stroke();
+    }
+  }
+  ctx.shadowColor=f.char.glowColor; ctx.shadowBlur=flash?45:(isActive?32:18+glow*10);
   const mainColor=flash?'#ffffff':f.char.primaryColor;
   const accentC=flash?'#ffffff':f.char.accentColor;
 
@@ -1010,97 +1194,140 @@ function drawSuperCutscene(){
 
 // ─── HUD ──────────────────────────────────────────────────────────────────────
 function drawHUD(){
-  const BAR_W=W*0.35, BAR_H=14, SHIELD_H=5, SUPER_H=5, BAR_Y=24, BAR_PAD=14;
+  const BAR_W=W*0.36, BAR_H=16, SHIELD_H=6, SUPER_H=6, BAR_Y=28, BAR_PAD=12;
 
-  // Player HP
+  // ── PLAYER HP ──
   const pPct=Math.max(0,player.hp/player.maxHp);
-  ctx.fillStyle='#1a1a2e'; ctx.fillRect(BAR_PAD,BAR_Y,BAR_W,BAR_H);
-  const pHpColor=pPct>0.5?'#2ecc71':pPct>0.25?'#f39c12':'#e74c3c';
-  ctx.fillStyle=pHpColor; ctx.fillRect(BAR_PAD,BAR_Y,BAR_W*pPct,BAR_H);
-  ctx.strokeStyle='#ffffff22'; ctx.lineWidth=1; ctx.strokeRect(BAR_PAD,BAR_Y,BAR_W,BAR_H);
+  const pHpColor=pPct>0.5?'#00ff88':pPct>0.25?'#ffaa00':'#ff2244';
+  // bar background
+  ctx.fillStyle='#00000088'; ctx.fillRect(BAR_PAD-2,BAR_Y-2,BAR_W+4,BAR_H+4);
+  ctx.fillStyle='#0e0e18'; ctx.fillRect(BAR_PAD,BAR_Y,BAR_W,BAR_H);
+  // glowing fill
+  const pGrad=ctx.createLinearGradient(BAR_PAD,BAR_Y,BAR_PAD,BAR_Y+BAR_H);
+  pGrad.addColorStop(0,pHpColor+'ff'); pGrad.addColorStop(1,pHpColor+'88');
+  ctx.fillStyle=pGrad; ctx.shadowColor=pHpColor; ctx.shadowBlur=12;
+  ctx.fillRect(BAR_PAD,BAR_Y,BAR_W*pPct,BAR_H);
+  ctx.shadowBlur=0;
+  ctx.strokeStyle='#ffffff15'; ctx.lineWidth=1; ctx.strokeRect(BAR_PAD,BAR_Y,BAR_W,BAR_H);
 
-  // Player Shield
+  // Player Shield bar
   const pShield=player.shield/player.maxShield;
   ctx.fillStyle='#0a1a2e'; ctx.fillRect(BAR_PAD,BAR_Y+BAR_H+2,BAR_W,SHIELD_H);
-  ctx.fillStyle='#4a9eff'; ctx.fillRect(BAR_PAD,BAR_Y+BAR_H+2,BAR_W*pShield,SHIELD_H);
+  ctx.fillStyle='#4a9eff'; ctx.shadowColor='#4a9eff'; ctx.shadowBlur=6;
+  ctx.fillRect(BAR_PAD,BAR_Y+BAR_H+2,BAR_W*pShield,SHIELD_H); ctx.shadowBlur=0;
 
-  // Player Super Meter
+  // Player Super
   const pSuper=player.superMeter/player.maxSuper;
-  ctx.fillStyle='#1a0a00'; ctx.fillRect(BAR_PAD,BAR_Y+BAR_H+SHIELD_H+4,BAR_W,SUPER_H);
+  ctx.fillStyle='#120a00'; ctx.fillRect(BAR_PAD,BAR_Y+BAR_H+SHIELD_H+4,BAR_W,SUPER_H);
   const superGrad=ctx.createLinearGradient(BAR_PAD,0,BAR_PAD+BAR_W,0);
-  superGrad.addColorStop(0,'#ff4400'); superGrad.addColorStop(1,'#ffcc00');
+  superGrad.addColorStop(0,'#ff2200'); superGrad.addColorStop(0.5,'#ff8800'); superGrad.addColorStop(1,'#ffff00');
   ctx.fillStyle=superGrad;
-  if(pSuper>=1){ctx.shadowColor='#ffcc00'; ctx.shadowBlur=8;}
-  ctx.fillRect(BAR_PAD,BAR_Y+BAR_H+SHIELD_H+4,BAR_W*pSuper,SUPER_H);
-  ctx.shadowBlur=0;
+  if(pSuper>=1){ctx.shadowColor='#ffff00'; ctx.shadowBlur=14;}
+  ctx.fillRect(BAR_PAD,BAR_Y+BAR_H+SHIELD_H+4,BAR_W*pSuper,SUPER_H); ctx.shadowBlur=0;
 
-  // Opponent HP
+  // ── OPP HP ──
   const oPct=Math.max(0,opp.hp/opp.maxHp);
   const oBarX=W-BAR_PAD-BAR_W;
-  ctx.fillStyle='#1a1a2e'; ctx.fillRect(oBarX,BAR_Y,BAR_W,BAR_H);
-  ctx.fillStyle=oPct>0.5?'#e74c3c':oPct>0.25?'#f39c12':'#888';
-  ctx.fillRect(oBarX+BAR_W*(1-oPct),BAR_Y,BAR_W*oPct,BAR_H);
-  ctx.strokeStyle='#ffffff22'; ctx.strokeRect(oBarX,BAR_Y,BAR_W,BAR_H);
+  const oHpColor=oPct>0.5?'#ff3355':oPct>0.25?'#ff8800':'#888888';
+  ctx.fillStyle='#00000088'; ctx.fillRect(oBarX-2,BAR_Y-2,BAR_W+4,BAR_H+4);
+  ctx.fillStyle='#0e0e18'; ctx.fillRect(oBarX,BAR_Y,BAR_W,BAR_H);
+  const oGrad=ctx.createLinearGradient(oBarX,BAR_Y,oBarX,BAR_Y+BAR_H);
+  oGrad.addColorStop(0,oHpColor+'ff'); oGrad.addColorStop(1,oHpColor+'88');
+  ctx.fillStyle=oGrad; ctx.shadowColor=oHpColor; ctx.shadowBlur=12;
+  ctx.fillRect(oBarX+BAR_W*(1-oPct),BAR_Y,BAR_W*oPct,BAR_H); ctx.shadowBlur=0;
+  ctx.strokeStyle='#ffffff15'; ctx.strokeRect(oBarX,BAR_Y,BAR_W,BAR_H);
 
-  // Opponent Shield
   const oShield=opp.shield/opp.maxShield;
   ctx.fillStyle='#0a1a2e'; ctx.fillRect(oBarX,BAR_Y+BAR_H+2,BAR_W,SHIELD_H);
-  ctx.fillStyle='#4a9eff'; ctx.fillRect(oBarX+BAR_W*(1-oShield),BAR_Y+BAR_H+2,BAR_W*oShield,SHIELD_H);
+  ctx.fillStyle='#4a9eff'; ctx.shadowColor='#4a9eff'; ctx.shadowBlur=6;
+  ctx.fillRect(oBarX+BAR_W*(1-oShield),BAR_Y+BAR_H+2,BAR_W*oShield,SHIELD_H); ctx.shadowBlur=0;
 
-  // Opponent Super
   const oSuper=opp.superMeter/opp.maxSuper;
-  ctx.fillStyle='#1a0a00'; ctx.fillRect(oBarX,BAR_Y+BAR_H+SHIELD_H+4,BAR_W,SUPER_H);
+  ctx.fillStyle='#120a00'; ctx.fillRect(oBarX,BAR_Y+BAR_H+SHIELD_H+4,BAR_W,SUPER_H);
   ctx.fillStyle=superGrad;
   ctx.fillRect(oBarX+BAR_W*(1-oSuper),BAR_Y+BAR_H+SHIELD_H+4,BAR_W*oSuper,SUPER_H);
 
-  // Names
-  ctx.fillStyle='#fff'; ctx.font='bold 11px sans-serif';
-  ctx.textAlign='left'; ctx.fillText(player.name.toUpperCase(),BAR_PAD,BAR_Y-4);
-  ctx.fillStyle=PLAYER_CHAR.primaryColor; ctx.font='bold 10px sans-serif';
-  ctx.fillText(PLAYER_CHAR.name+'  LV'+player.level,BAR_PAD,BAR_Y+BAR_H+SHIELD_H+SUPER_H+10);
+  // ── NAMES ──
+  ctx.shadowColor=PLAYER_CHAR.glowColor; ctx.shadowBlur=8;
+  ctx.fillStyle='#fff'; ctx.font='bold 12px sans-serif';
+  ctx.textAlign='left'; ctx.fillText(player.name.toUpperCase(),BAR_PAD,BAR_Y-6);
+  ctx.fillStyle=PLAYER_CHAR.primaryColor; ctx.font='bold 9px sans-serif';
+  ctx.fillText(PLAYER_CHAR.name+'  LV'+player.level,BAR_PAD,BAR_Y+BAR_H+SHIELD_H+SUPER_H+12);
+  ctx.shadowBlur=0;
 
-  ctx.fillStyle='#fff'; ctx.font='bold 11px sans-serif';
-  ctx.textAlign='right'; ctx.fillText(opp.name.toUpperCase(),W-BAR_PAD,BAR_Y-4);
-  ctx.fillStyle=OPP_CHAR.primaryColor; ctx.font='bold 10px sans-serif';
-  ctx.fillText('LV'+opp.level+'  '+OPP_CHAR.name,W-BAR_PAD,BAR_Y+BAR_H+SHIELD_H+SUPER_H+10);
+  ctx.shadowColor=OPP_CHAR.glowColor; ctx.shadowBlur=8;
+  ctx.fillStyle='#fff'; ctx.font='bold 12px sans-serif';
+  ctx.textAlign='right'; ctx.fillText(opp.name.toUpperCase(),W-BAR_PAD,BAR_Y-6);
+  ctx.fillStyle=OPP_CHAR.primaryColor; ctx.font='bold 9px sans-serif';
+  ctx.fillText('LV'+opp.level+'  '+OPP_CHAR.name,W-BAR_PAD,BAR_Y+BAR_H+SHIELD_H+SUPER_H+12);
+  ctx.shadowBlur=0;
 
-  // Round pips
-  const pipY=BAR_Y+BAR_H+SHIELD_H+4;
+  // HP numbers
+  ctx.fillStyle='#ffffffcc'; ctx.font='bold 10px monospace';
+  ctx.textAlign='left'; ctx.fillText(Math.ceil(player.hp)+'/'+player.maxHp,BAR_PAD,BAR_Y+BAR_H-2);
+  ctx.textAlign='right'; ctx.fillText(Math.ceil(opp.hp)+'/'+opp.maxHp,W-BAR_PAD,BAR_Y+BAR_H-2);
+
+  // ── ROUND PIPS ──
+  const pipY=BAR_Y+BAR_H/2;
   for(let i=0;i<ROUNDS_TO_WIN;i++){
-    ctx.fillStyle=i<playerRoundsWon?'#e8c84a':'#333';
-    ctx.beginPath();ctx.arc(W/2-24+i*-20,pipY,5,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=i<oppRoundsWon?'#e74c3c':'#333';
-    ctx.beginPath();ctx.arc(W/2+24+i*20,pipY,5,0,Math.PI*2);ctx.fill();
+    const filled=i<playerRoundsWon;
+    ctx.fillStyle=filled?'#e8c84a':'#2a2a3a'; ctx.shadowColor=filled?'#e8c84a':'transparent'; ctx.shadowBlur=filled?8:0;
+    ctx.beginPath();ctx.arc(W/2-14-i*16,pipY+4,5,0,Math.PI*2);ctx.fill();
+    const oFilled=i<oppRoundsWon;
+    ctx.fillStyle=oFilled?'#ff3355':'#2a2a3a'; ctx.shadowColor=oFilled?'#ff3355':'transparent'; ctx.shadowBlur=oFilled?8:0;
+    ctx.beginPath();ctx.arc(W/2+14+i*16,pipY+4,5,0,Math.PI*2);ctx.fill();
   }
+  ctx.shadowBlur=0;
 
-  // Timer
-  ctx.fillStyle=roundTimer<=10?'#e74c3c':'#fff';
-  ctx.font='bold 24px monospace'; ctx.textAlign='center';
-  ctx.fillText(String(Math.ceil(roundTimer)).padStart(2,'0'),W/2,BAR_Y+BAR_H-1);
+  // ── TIMER ──
+  const timerLow=roundTimer<=10;
+  ctx.fillStyle=timerLow?'#ff2244':'#ffffff';
+  ctx.shadowColor=timerLow?'#ff0000':'#aaaaff'; ctx.shadowBlur=timerLow?20:6;
+  ctx.font='bold 26px monospace'; ctx.textAlign='center';
+  ctx.fillText(String(Math.ceil(roundTimer)).padStart(2,'0'),W/2,BAR_Y+BAR_H);
+  ctx.shadowBlur=0;
 
-  // Combo
+  // ── COMBO COUNTER ──
   if(player.comboCount>=2){
-    ctx.fillStyle=player.char.accentColor; ctx.font='bold 28px sans-serif'; ctx.textAlign='left';
-    ctx.shadowColor=player.char.glowColor; ctx.shadowBlur=18;
-    ctx.fillText(player.comboCount+' HIT',20,H-190); ctx.shadowBlur=0;
+    const cSize=Math.min(52,24+player.comboCount*1.8);
+    ctx.save();
+    ctx.translate(BAR_PAD+10,H*0.52);
+    const shake=(player.comboCount>=10&&player.comboTimer<8)?Math.random()*4-2:0;
+    ctx.translate(shake,shake);
+    ctx.shadowColor=player.char.glowColor; ctx.shadowBlur=28+player.comboCount;
+    ctx.fillStyle=player.char.accentColor;
+    ctx.font=\`bold \${cSize}px sans-serif\`;
+    ctx.textAlign='left';
+    ctx.fillText(player.comboCount+' HIT',0,0);
+    ctx.font='bold 10px sans-serif';
+    ctx.fillStyle='#ffffff88';
+    ctx.fillText('COMBO',0,14);
+    ctx.shadowBlur=0; ctx.restore();
   }
   if(opp.comboCount>=2){
-    ctx.fillStyle=opp.char.accentColor; ctx.font='bold 28px sans-serif'; ctx.textAlign='right';
-    ctx.shadowColor=opp.char.glowColor; ctx.shadowBlur=18;
-    ctx.fillText(opp.comboCount+' HIT',W-20,H-190); ctx.shadowBlur=0;
+    const cSize=Math.min(52,24+opp.comboCount*1.8);
+    ctx.save(); ctx.translate(W-BAR_PAD-10,H*0.52);
+    ctx.shadowColor=opp.char.glowColor; ctx.shadowBlur=28;
+    ctx.fillStyle=opp.char.accentColor; ctx.font=\`bold \${cSize}px sans-serif\`; ctx.textAlign='right';
+    ctx.fillText(opp.comboCount+' HIT',0,0); ctx.shadowBlur=0; ctx.restore();
   }
 
-  // Super ready indicator
+  // ── SUPER READY ──
   if(player.superMeter>=player.maxSuper){
-    ctx.fillStyle='#ffcc00'; ctx.font='bold 11px sans-serif'; ctx.textAlign='left';
-    ctx.shadowColor='#ffcc00'; ctx.shadowBlur=10;
-    ctx.fillText('↑↑ SUPER READY',BAR_PAD,H-200); ctx.shadowBlur=0;
+    const pulse=Math.sin(roundFrame*0.15)*0.3+0.7;
+    ctx.globalAlpha=pulse;
+    ctx.fillStyle='#ffff00'; ctx.font='bold 11px sans-serif'; ctx.textAlign='left';
+    ctx.shadowColor='#ffcc00'; ctx.shadowBlur=16;
+    ctx.fillText('↑↑ SUPER READY',BAR_PAD,H*0.38);
+    ctx.shadowBlur=0; ctx.globalAlpha=1;
   }
 
-  // Buff icons
-  let buffY=H-200;
-  if(player.buffAtk>0){ctx.fillStyle='#e8c84a';ctx.font='bold 10px sans-serif';ctx.textAlign='left';ctx.fillText('⚡ POWER',BAR_PAD,buffY+=14);}
-  if(player.buffSpd>0){ctx.fillStyle='#ce93d8';ctx.font='bold 10px sans-serif';ctx.textAlign='left';ctx.fillText('💨 SPEED',BAR_PAD,buffY+=14);}
+  // ── STATUS EFFECTS ──
+  let buffY=H*0.42;
+  if(player.buffAtk>0){ctx.shadowColor='#ffcc00';ctx.shadowBlur=8;ctx.fillStyle='#ffcc00';ctx.font='bold 10px sans-serif';ctx.textAlign='left';ctx.fillText('⚡ POWER UP',BAR_PAD,buffY);buffY+=15;ctx.shadowBlur=0;}
+  if(player.buffSpd>0){ctx.shadowColor='#ee00ff';ctx.shadowBlur=8;ctx.fillStyle='#ce93d8';ctx.font='bold 10px sans-serif';ctx.textAlign='left';ctx.fillText('💨 SPEED UP',BAR_PAD,buffY);buffY+=15;ctx.shadowBlur=0;}
+  if(player.poisoned){ctx.fillStyle='#66ff66';ctx.font='bold 10px sans-serif';ctx.textAlign='left';ctx.fillText('☠ POISONED',BAR_PAD,buffY);buffY+=15;}
+  if(player.deathWishActive){ctx.shadowColor='#ff0000';ctx.shadowBlur=12;ctx.fillStyle='#ff2200';ctx.font='bold 11px sans-serif';ctx.textAlign='left';ctx.fillText('💀 DEATH WISH',BAR_PAD,buffY);ctx.shadowBlur=0;}
 }
 
 function drawControls(){

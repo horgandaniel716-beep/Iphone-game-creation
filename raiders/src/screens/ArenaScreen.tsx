@@ -12,6 +12,8 @@ import MultiplayerLobbyScreen from './MultiplayerLobbyScreen';
 import ScoutingReportScreen from './ScoutingReportScreen';
 import { getNewTrophies } from '../lib/trophies';
 import { detectBuildVariant } from '../lib/moveTypes';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import type { Fighter, BattleResult } from '../types';
 import type { MatchState } from '../lib/matchmaking';
 
@@ -116,6 +118,25 @@ export default function ArenaScreen() {
         }
 
         recordBattle(result);
+
+        // Persist wins/losses/streak/trophies to Firestore
+        if (fighter && fighter.userId !== 'bot') {
+          const newWins2  = fighter.wins + (data.won ? 1 : 0);
+          const newLosses = fighter.losses + (data.won ? 0 : 1);
+          const newStreak = data.won ? (fighter.currentStreak ?? 0) + 1 : 0;
+          const variant2  = detectBuildVariant(fighter.unlockedMoves ?? [], newWins2);
+          const earned2   = fighter.earnedTrophies ?? [];
+          const newTrophies2 = getNewTrophies(newWins2, newStreak, fighter.rank?.tier ?? 'bronze', variant2.id, earned2);
+          const earnedTrophies2 = [...earned2, ...newTrophies2.map((t) => t.id)];
+          updateDoc(doc(db, 'fighters', fighter.userId), {
+            wins: newWins2,
+            losses: newLosses,
+            currency: fighter.currency + data.currencyEarned,
+            currentStreak: newStreak,
+            earnedTrophies: earnedTrophies2,
+          }).catch(() => {});
+        }
+
         setTimeout(() => setPhase('idle'), 3500);
       }
     } catch {}
@@ -141,7 +162,7 @@ export default function ArenaScreen() {
 
   if (phase === 'battle') {
     return (
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: '#000' }}>
         <WebView
           ref={webRef}
           source={{ html }}
@@ -149,6 +170,8 @@ export default function ArenaScreen() {
           onMessage={handleWebMessage}
           javaScriptEnabled
           scrollEnabled={false}
+          bounces={false}
+          overScrollMode="never"
         />
       </View>
     );
