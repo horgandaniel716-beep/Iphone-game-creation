@@ -197,6 +197,28 @@ function makeFighter(charDef, fighterData, side) {
   };
 }
 
+// ─── MOVE TYPE DAMAGE MULTIPLIERS ────────────────────────────────────────────
+// Maps characterArchetype → dominant move type for type matchup calculations
+const ARCHETYPE_TYPE = {
+  balanced:'physical', rushdown:'wind', powerhouse:'earth', trickster:'psychic',
+  assassin:'shadow', tank:'earth', zoner:'electric', summoner:'chaos',
+};
+const TYPE_STRONG = {
+  physical:['ice','earth'], fire:['ice','wind'], electric:['physical'],
+  shadow:['holy','psychic'], ice:['wind','poison'], wind:['fire','poison'],
+  earth:['fire','electric'], holy:['shadow','poison'], poison:['earth','physical'],
+  psychic:['shadow','chaos'], blood:['holy','psychic'], chaos:['physical','fire','shadow'],
+};
+function getTypeMult(attackerChar, defenderChar){
+  const atkType = ARCHETYPE_TYPE[attackerChar.archetype] || 'physical';
+  const defType = ARCHETYPE_TYPE[defenderChar.archetype] || 'physical';
+  const strong = TYPE_STRONG[atkType] || [];
+  if(strong.includes(defType)) return 1.25;
+  const defStrong = TYPE_STRONG[defType] || [];
+  if(defStrong.includes(atkType)) return 0.8;
+  return 1.0;
+}
+
 // ─── TRINKET ENGINE ───────────────────────────────────────────────────────────
 const TRINKET_DB = {
   bloodstone:   { effect:'lifesteal',    value:2    },
@@ -583,7 +605,10 @@ function checkHit(attacker,defender,move){
   // ── TRINKET: unblockable (gods_eye) ──
   const unblockable = getTrinketEffect(attackerFD,'unblockable');
   const atkMult = attacker.buffAtk>0 ? 1.5 : 1;
-  let dmg = move.dmg * atkMult * (1 - defender.char.stats.defense/300);
+  const typeMult = getTypeMult(attacker.char, defender.char);
+  let dmg = move.dmg * atkMult * typeMult * (1 - defender.char.stats.defense/300);
+  // Type effectiveness flash
+  if(typeMult>1){ spawnSpark(defender.x,defender.y-100,'#ffffff'); }
 
   // ── TRINKET: damage reduce (iron_skin) ──
   const dmgReduce = getTrinketEffect(defenderFD,'dmg_reduce');
