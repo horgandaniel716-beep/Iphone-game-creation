@@ -7,16 +7,20 @@ import BaseScreen from '../screens/BaseScreen';
 import ShopScreen from '../screens/ShopScreen';
 import RaidScreen from '../screens/RaidScreen';
 import CharacterSelectScreen from '../screens/CharacterSelectScreen';
+import MovesScreen from '../screens/MovesScreen';
+import WeaponsScreen from '../screens/WeaponsScreen';
 
 const Tab = createBottomTabNavigator();
 
 const ICONS: Record<string, string> = {
-  Home: '🏠',
-  Arena: '⚔️',
-  Fighter: '🥊',
-  Raid: '🏴',
-  Base: '🏰',
-  Shop: '🏪',
+  Home:    '🏠',
+  Arena:   '⚔️',
+  Fighter: '👤',
+  Moves:   '🥋',
+  Weapons: '🗡️',
+  Raid:    '🏴',
+  Base:    '🏰',
+  Shop:    '🏪',
 };
 
 export default function TabNavigator() {
@@ -38,6 +42,8 @@ export default function TabNavigator() {
       <Tab.Screen name="Home"    component={HomeScreen} />
       <Tab.Screen name="Arena"   component={ArenaScreen} />
       <Tab.Screen name="Fighter" component={CharacterSelectScreen} />
+      <Tab.Screen name="Moves"   component={MovesScreen} />
+      <Tab.Screen name="Weapons" component={WeaponsScreen} />
       <Tab.Screen name="Raid"    component={RaidScreen} />
       <Tab.Screen name="Base"    component={BaseScreen} />
       <Tab.Screen name="Shop"    component={ShopScreen} />

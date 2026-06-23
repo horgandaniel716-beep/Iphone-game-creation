@@ -1,4 +1,47 @@
-export type FighterArchetype = 'balanced' | 'rushdown' | 'powerhouse' | 'trickster';
+export type FighterArchetype = 'balanced' | 'rushdown' | 'powerhouse' | 'trickster' | 'assassin' | 'tank' | 'zoner' | 'summoner';
+
+export type RankTier = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'master' | 'grandmaster' | 'legend';
+
+export interface Rank {
+  tier: RankTier;
+  division: 1 | 2 | 3 | 4;
+  mmr: number;
+  peakMmr: number;
+  season: number;
+}
+
+export type MoveTier = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'overpowered';
+
+export type MoveCategory = 'strike' | 'grab' | 'counter' | 'air' | 'projectile' | 'combo' | 'finisher' | 'special' | 'super';
+
+export interface Move {
+  id: string;
+  name: string;
+  description: string;
+  tier: MoveTier;
+  category: MoveCategory;
+  damage: number;
+  unlockCost: number;
+  unlockLevel: number;
+  frames: { startup: number; active: number; recovery: number };
+  effects: string[];
+  icon: string;
+}
+
+export type WeaponType = 'fists' | 'blade' | 'chain' | 'staff' | 'gun' | 'claws' | 'gauntlets' | 'whip' | 'axe' | 'scythe' | 'katana' | 'dual_blades' | 'hammer' | 'spear' | 'nunchaku';
+
+export interface Weapon {
+  id: string;
+  name: string;
+  type: WeaponType;
+  description: string;
+  icon: string;
+  cost: number;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  statBoosts: Partial<FighterStats>;
+  specialEffect: string;
+  effectColor: string;
+}
 
 export interface Fighter {
   id: string;
@@ -13,6 +56,10 @@ export interface Fighter {
   selectedCharacter: CharacterDef['id'];
   equipment: Equipment;
   stats: FighterStats;
+  rank?: Rank;
+  unlockedMoves?: string[];
+  weaponSlot1?: string | null;
+  weaponSlot2?: string | null;
 }
 
 export interface FighterStats {
@@ -40,8 +87,13 @@ export interface CharacterDef {
   stats: FighterStats;
   specialName: string;
   specialDesc: string;
+  superName: string;
+  superDesc: string;
   icon: string;
   unlockCost: number;
+  unlockLevel: number;
+  lore: string;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary' | 'secret';
 }
 
 export interface Base {
@@ -97,15 +149,18 @@ export interface BattleResult {
   opponentName: string;
   opponentCharacter: string;
   timestamp: number;
+  mmrChange?: number;
 }
 
 export interface ShopItem {
   id: string;
   name: string;
   description: string;
-  type: 'equipment' | 'demon_slot';
+  type: 'equipment' | 'demon_slot' | 'weapon' | 'move';
   slot?: keyof Equipment;
   cost: number;
   statBoosts?: Partial<FighterStats>;
   icon: string;
+  rarity?: string;
+  requiresLevel?: number;
 }
