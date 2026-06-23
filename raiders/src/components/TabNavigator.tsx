@@ -9,6 +9,7 @@ import RaidScreen from '../screens/RaidScreen';
 import CharacterSelectScreen from '../screens/CharacterSelectScreen';
 import MovesScreen from '../screens/MovesScreen';
 import WeaponsScreen from '../screens/WeaponsScreen';
+import DojoScreen from '../screens/DojoScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -21,6 +22,7 @@ const ICONS: Record<string, string> = {
   Raid:    '🏴',
   Base:    '🏰',
   Shop:    '🏪',
+  Dojo:    '🏯',
 };
 
 export default function TabNavigator() {
@@ -46,6 +48,7 @@ export default function TabNavigator() {
       <Tab.Screen name="Weapons" component={WeaponsScreen} />
       <Tab.Screen name="Raid"    component={RaidScreen} />
       <Tab.Screen name="Base"    component={BaseScreen} />
+      <Tab.Screen name="Dojo"    component={DojoScreen} />
       <Tab.Screen name="Shop"    component={ShopScreen} />
     </Tab.Navigator>
   );
