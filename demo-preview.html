@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>RAIDERS — Game Preview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #050508; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #fff; }
+
+  .phone-frame {
+    width: 390px;
+    min-height: 844px;
+    margin: 20px auto;
+    background: #0a0a0f;
+    border-radius: 48px;
+    border: 2px solid #1e1e2e;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 80px #1a73e822, 0 0 160px #0a0a0f;
+  }
+
+  .notch {
+    width: 120px; height: 28px;
+    background: #050508;
+    border-radius: 0 0 20px 20px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 10;
+  }
+
+  .screen { padding: 0 0 80px; overflow-y: auto; min-height: 780px; }
+
+  /* Tab bar */
+  .tabbar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 388px;
+    background: #0f0f17;
+    border-top: 1px solid #1a1a2e;
+    display: flex;
+    padding: 10px 0 16px;
+    z-index: 100;
+  }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; opacity: 0.4; transition: opacity 0.2s; }
+  .tab.active { opacity: 1; }
+  .tab-icon { font-size: 20px; }
+  .tab-label { font-size: 7px; font-weight: 800; letter-spacing: 0.5px; color: #e8c84a; }
+
+  /* Screens */
+  .page { display: none; padding: 20px; padding-bottom: 100px; }
+  .page.active { display: block; }
+
+  /* Typography */
+  .screen-title { color: #e8c84a; font-size: 28px; font-weight: 900; letter-spacing: 4px; margin-bottom: 4px; }
+  .screen-sub { color: #444; font-size: 11px; margin-bottom: 20px; }
+
+  /* Cards */
+  .card {
+    background: #12121a;
+    border-radius: 16px;
+    padding: 16px;
+    border: 1px solid #2a2a3a;
+    margin-bottom: 12px;
+  }
+  .card-accent { border-color: rgba(26,115,232,0.35); }
+
+  /* Rank banner */
+  .rank-banner {
+    background: rgba(26,115,232,0.08);
+    border: 1px solid rgba(26,115,232,0.3);
+    border-radius: 16px;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .rank-icon-big { font-size: 32px; }
+  .rank-info { flex: 1; }
+  .rank-small-label { color: #444; font-size: 9px; letter-spacing: 2px; margin-bottom: 2px; }
+  .rank-name { color: #1a73e8; font-size: 18px; font-weight: 900; letter-spacing: 1px; }
+  .mmr-box { text-align: center; }
+  .mmr-val { color: #1a73e8; font-size: 22px; font-weight: 900; }
+  .mmr-lbl { color: #444; font-size: 9px; letter-spacing: 1px; }
+
+  /* Fighter card */
+  .fighter-row { display: flex; align-items: center; gap: 14px; }
+  .char-icon { font-size: 44px; }
+  .char-info { flex: 1; }
+  .char-name { font-size: 20px; font-weight: 900; letter-spacing: 2px; color: #1a73e8; }
+  .char-sub { color: #555; font-size: 11px; margin-bottom: 8px; }
+  .level-row { display: flex; align-items: center; gap: 8px; }
+  .level-text { color: #e8c84a; font-weight: 700; font-size: 13px; }
+  .xp-bar-bg { flex: 1; height: 5px; background: #2a2a3a; border-radius: 3px; overflow: hidden; }
+  .xp-bar-fill { height: 5px; background: #1a73e8; border-radius: 3px; width: 34%; }
+  .xp-text { color: #444; font-size: 10px; }
+  .char-rarity { background: rgba(26,115,232,0.15); border-radius: 8px; padding: 2px 8px; display: inline-block; }
+  .char-rarity-text { color: #4fc3f7; font-size: 8px; font-weight: 800; letter-spacing: 1px; }
+
+  /* Stats row */
+  .stats-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .stat-box { flex: 1; background: #12121a; border-radius: 12px; padding: 10px; text-align: center; border: 1px solid #2a2a3a; }
+  .stat-val { color: #fff; font-size: 15px; font-weight: 700; }
+  .stat-lbl { color: #444; font-size: 9px; margin-top: 2px; }
+
+  /* Weapons */
+  .weapon-row { display: flex; gap: 12px; }
+  .weapon-slot { flex: 1; background: #1e1e2e; border-radius: 10px; padding: 12px; text-align: center; border: 1px solid #2a2a3a; }
+  .weapon-slot-label { color: #444; font-size: 9px; letter-spacing: 1px; margin-bottom: 4px; }
+  .weapon-slot-name { color: #e8c84a; font-size: 11px; font-weight: 700; }
+  .weapon-slot-empty { color: #333; font-size: 11px; }
+  .slot-icon { font-size: 24px; margin-bottom: 4px; }
+
+  /* Section title */
+  .section-title { color: #444; font-size: 10px; letter-spacing: 2px; margin-bottom: 10px; }
+
+  /* Special move */
+  .special-box { background: rgba(26,115,232,0.1); border-radius: 10px; padding: 12px; }
+  .special-name { color: #4fc3f7; font-size: 14px; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px; }
+  .special-desc { color: #666; font-size: 12px; line-height: 1.5; }
+  .super-name { color: #1a73e8; font-size: 13px; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px; margin-top: 10px; }
+  .divider { height: 1px; background: #2a2a3a; margin: 10px 0; }
+
+  /* Arena screen */
+  .arena-title { font-size: 42px; font-weight: 900; letter-spacing: 4px; color: #e8c84a; text-align: center; margin-bottom: 4px; }
+  .arena-sub { color: #444; font-size: 10px; letter-spacing: 2px; text-align: center; margin-bottom: 28px; }
+  .stage-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .stage-tab { flex: 1; background: #12121a; border-radius: 12px; padding: 10px; text-align: center; border: 1px solid #2a2a3a; cursor: pointer; transition: all 0.2s; }
+  .stage-tab.active { border-color: #e67e22; background: rgba(26,10,0,0.8); }
+  .stage-icon { font-size: 24px; margin-bottom: 4px; }
+  .stage-name-small { color: #555; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+  .stage-name-small.active { color: #e67e22; }
+
+  .stage-detail { background: rgba(26,10,0,0.8); border: 1px solid #8b4513; border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+  .stage-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .stage-big-icon { font-size: 36px; }
+  .stage-name-big { color: #e67e22; font-size: 20px; font-weight: 900; letter-spacing: 2px; }
+  .stage-location { color: #555; font-size: 11px; margin-top: 2px; }
+  .vibe-pill { background: rgba(230,126,34,0.15); border-radius: 20px; padding: 4px 8px; display: inline-block; }
+  .vibe-text { color: #e67e22; font-size: 9px; font-weight: 800; letter-spacing: 1px; }
+  .stage-desc { color: #777; font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+  .hazard-box { background: rgba(26,0,0,0.13); border: 1px solid rgba(231,76,60,0.27); border-radius: 10px; padding: 10px; }
+  .hazard-label { color: #e74c3c; font-size: 10px; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px; }
+  .hazard-text { color: #888; font-size: 12px; }
+
+  .battle-btn { width: 100%; background: #1a73e8; border-radius: 14px; padding: 20px; text-align: center; cursor: pointer; border: none; margin-top: 8px; }
+  .battle-btn-text { color: #fff; font-weight: 900; font-size: 22px; letter-spacing: 4px; }
+
+  /* Characters screen */
+  .char-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+  .char-card {
+    width: calc(50% - 5px);
+    background: #12121a;
+    border-radius: 14px;
+    padding: 14px;
+    text-align: center;
+    border: 1px solid #2a2a3a;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .char-card.active { border-color: #1a73e8; border-width: 2px; background: rgba(26,115,232,0.1); }
+  .char-card.locked { opacity: 0.7; }
+  .char-card-icon { font-size: 36px; margin-bottom: 6px; }
+  .char-card-name { font-size: 18px; font-weight: 900; letter-spacing: 2px; margin-bottom: 2px; }
+  .char-card-sub { color: #555; font-size: 10px; margin-bottom: 6px; }
+  .archetype-pill { border-radius: 20px; padding: 3px 10px; display: inline-block; margin-top: 2px; }
+  .archetype-text { font-size: 9px; font-weight: 700; letter-spacing: 1px; }
+  .active-badge { color: #e8c84a; font-size: 9px; font-weight: 800; margin-top: 6px; letter-spacing: 1px; }
+  .lock-badge { font-size: 11px; font-weight: 700; margin-top: 6px; color: #e74c3c; }
+  .lock-badge.afford { color: #2ecc71; }
+
+  /* Moves screen */
+  .tier-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px; scrollbar-width: none; }
+  .tier-tab { border-radius: 20px; border: 1px solid #2a2a3a; padding: 8px 14px; white-space: nowrap; cursor: pointer; transition: all 0.2s; }
+  .tier-tab.active-common    { border-color: #aaa; background: rgba(170,170,170,0.1); }
+  .tier-tab.active-uncommon  { border-color: #2ecc71; background: rgba(46,204,113,0.1); }
+  .tier-tab.active-rare      { border-color: #4a9eff; background: rgba(74,158,255,0.1); }
+  .tier-tab.active-epic      { border-color: #b44aff; background: rgba(180,74,255,0.1); }
+  .tier-tab.active-legendary { border-color: #ff9000; background: rgba(255,144,0,0.1); }
+  .tier-tab.active-op        { border-color: #ff2d78; background: rgba(255,45,120,0.1); }
+  .tier-text { font-size: 11px; font-weight: 800; letter-spacing: 1px; }
+  .move-card { background: #12121a; border-radius: 14px; padding: 14px; border: 1px solid #2a2a3a; margin-bottom: 10px; }
+  .move-header { display: flex; align-items: center; gap: 10px; }
+  .move-icon { font-size: 28px; }
+  .move-info { flex: 1; }
+  .move-name { font-size: 15px; font-weight: 800; letter-spacing: 1px; }
+  .move-desc { color: #666; font-size: 12px; margin-top: 2px; }
+  .move-cost { color: #e8c84a; font-weight: 700; font-size: 13px; }
+  .owned-badge { font-size: 11px; font-weight: 800; }
+
+  /* Rank screen styles */
+  .rank-tiers { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .rank-row { background: #12121a; border-radius: 14px; padding: 14px; border: 1px solid #2a2a3a; display: flex; align-items: center; gap: 12px; }
+  .rank-row.current { border-width: 2px; }
+  .rank-row-icon { font-size: 28px; }
+  .rank-row-info { flex: 1; }
+  .rank-row-name { font-size: 16px; font-weight: 900; }
+  .rank-row-mmr { color: #444; font-size: 11px; margin-top: 2px; }
+  .rank-arrow { color: #444; font-size: 16px; }
+  .current-marker { font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+
+  /* Battle history */
+  .battle-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #1e1e2e; }
+  .win-label { color: #2ecc71; font-weight: 800; font-size: 11px; width: 40px; }
+  .loss-label { color: #e74c3c; font-weight: 800; font-size: 11px; width: 40px; }
+  .battle-opp { color: #888; flex: 1; font-size: 13px; }
+  .battle-reward { color: #e8c84a; font-size: 13px; font-weight: 600; }
+  .mmr-change-pos { color: #2ecc71; font-size: 10px; font-weight: 700; }
+  .mmr-change-neg { color: #e74c3c; font-size: 10px; font-weight: 700; }
+
+  /* Greeting */
+  .header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+  .greeting { color: #555; font-size: 12px; }
+  .player-name { color: #fff; font-size: 24px; font-weight: 800; }
+  .player-tag { color: #444; font-size: 11px; margin-top: 2px; }
+  .sign-out { color: #e8c84a; font-size: 13px; margin-top: 4px; }
+
+  /* Feature lines */
+  .feature-line { color: rgba(230,126,34,0.8); font-size: 12px; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<div style="text-align:center; padding: 20px 0 8px; color:#555; font-size:12px; letter-spacing:2px;">
+  RAIDERS — GAME PREVIEW
+</div>
+
+<div class="phone-frame">
+  <div class="notch"></div>
+
+  <!-- ═══ HOME SCREEN ═══ -->
+  <div class="page active" id="page-home">
+    <div class="header-row">
+      <div>
+        <div class="greeting">Welcome back,</div>
+        <div class="player-name">HORGAN</div>
+        <div class="player-tag">#RAIDERS</div>
+      </div>
+      <div class="sign-out">Sign Out</div>
+    </div>
+
+    <!-- Rank Banner -->
+    <div class="rank-banner">
+      <div class="rank-icon-big">🥈</div>
+      <div class="rank-info">
+        <div class="rank-small-label">CURRENT RANK</div>
+        <div class="rank-name">🥈 Silver 2</div>
+      </div>
+      <div class="mmr-box">
+        <div class="mmr-val">1340</div>
+        <div class="mmr-lbl">MMR</div>
+      </div>
+    </div>
+
+    <!-- Fighter Card -->
+    <div class="card card-accent">
+      <div class="fighter-row">
+        <div class="char-icon">⚡</div>
+        <div class="char-info">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+            <div class="char-name">APEX</div>
+            <div class="char-rarity"><span class="char-rarity-text">COMMON</span></div>
+          </div>
+          <div class="char-sub">Tech CEO / Exo-Suit</div>
+          <div class="level-row">
+            <div class="level-text">LVL 7</div>
+            <div class="xp-bar-bg"><div class="xp-bar-fill"></div></div>
+            <div class="xp-text">1240/3500</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-box"><div class="stat-val">2,840</div><div class="stat-lbl">💰 Gold</div></div>
+      <div class="stat-box"><div class="stat-val">14</div><div class="stat-lbl">⚔️ Wins</div></div>
+      <div class="stat-box"><div class="stat-val">6</div><div class="stat-lbl">💀 Losses</div></div>
+      <div class="stat-box"><div class="stat-val">70%</div><div class="stat-lbl">📊 W/R</div></div>
+    </div>
+
+    <!-- Weapon Loadout -->
+    <div class="card">
+      <div class="section-title">WEAPON LOADOUT</div>
+      <div class="weapon-row">
+        <div class="weapon-slot">
+          <div class="weapon-slot-label">LEFT HAND</div>
+          <div class="slot-icon">⚔️</div>
+          <div class="weapon-slot-name">KATANA</div>
+        </div>
+        <div class="weapon-slot">
+          <div class="weapon-slot-label">RIGHT HAND</div>
+          <div class="slot-icon">✋</div>
+          <div class="weapon-slot-empty">EMPTY</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Signature Moves -->
+    <div class="card" style="border-color: rgba(26,115,232,0.2)">
+      <div class="section-title">SIGNATURE MOVE</div>
+      <div class="special-box">
+        <div class="special-name">✦ Market Crash</div>
+        <div class="special-desc">Charges gauntlets and fires a bolt of electric energy forward</div>
+        <div class="divider"></div>
+        <div class="super-name">★ System Override</div>
+        <div class="special-desc">Full exo-suit activation: 5-second armor mode with enhanced speed and damage</div>
+      </div>
+    </div>
+
+    <!-- Recent Battles -->
+    <div class="card">
+      <div class="section-title">RECENT BATTLES</div>
+      <div class="battle-row"><span class="win-label">WIN</span><span class="battle-opp">vs Shadow</span><div style="text-align:right"><div class="battle-reward">+120g</div><div class="mmr-change-pos">+18 MMR</div></div></div>
+      <div class="battle-row"><span class="win-label">WIN</span><span class="battle-opp">vs Krom</span><div style="text-align:right"><div class="battle-reward">+95g</div><div class="mmr-change-pos">+14 MMR</div></div></div>
+      <div class="battle-row"><span class="loss-label">LOSS</span><span class="battle-opp">vs Cipher</span><div style="text-align:right"><div class="battle-reward">+30g</div><div class="mmr-change-neg">-12 MMR</div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══ ARENA SCREEN ═══ -->
+  <div class="page" id="page-arena">
+    <div class="arena-title">⚔️ ARENA</div>
+    <div class="arena-sub">BEST OF 3 ROUNDS • 99 SECONDS PER ROUND</div>
+
+    <!-- Fighter card -->
+    <div class="card card-accent" style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+      <div style="font-size:44px">⚡</div>
+      <div style="flex:1">
+        <div style="color:#444;font-size:9px;letter-spacing:2px;margin-bottom:2px;">YOUR FIGHTER</div>
+        <div style="color:#1a73e8;font-size:22px;font-weight:900;letter-spacing:2px;">HORGAN</div>
+        <div style="color:#888;font-size:12px;margin-top:2px;">APEX — Tech CEO / Exo-Suit</div>
+        <div style="color:#555;font-size:12px;margin-top:4px;">LVL 7  •  14W / 6L</div>
+      </div>
+    </div>
+
+    <!-- Stage tabs -->
+    <div class="stage-tabs">
+      <div class="stage-tab active" onclick="selectStage(this,'#1a0a00','#8b4513')">
+        <div class="stage-icon">🏚️</div>
+        <div class="stage-name-small active">FAVELAS</div>
+      </div>
+      <div class="stage-tab" onclick="selectStage(this,'#080515','#6e3d8e')">
+        <div class="stage-icon">🌸</div>
+        <div class="stage-name-small">SAKURA</div>
+      </div>
+      <div class="stage-tab" onclick="selectStage(this,'#0d0000','#660000')">
+        <div class="stage-icon">💀</div>
+        <div class="stage-name-small">DEATH PIT</div>
+      </div>
+    </div>
+
+    <!-- Stage detail -->
+    <div class="stage-detail">
+      <div class="stage-header">
+        <div class="stage-big-icon">🏚️</div>
+        <div style="flex:1">
+          <div class="stage-name-big">Favela Cage</div>
+          <div class="stage-location">Rio de Janeiro, Brazil</div>
+        </div>
+        <div class="vibe-pill"><span class="vibe-text">🌡️ HOT & DIRTY</span></div>
+      </div>
+      <div class="stage-desc">A crumbling concrete arena deep in the favelas, surrounded by a live crowd and chain-link walls.</div>
+      <div class="feature-line">◆ Dense concrete jungle</div>
+      <div class="feature-line">◆ Hostile crowd</div>
+      <div class="feature-line">◆ Jungle cage wire</div>
+      <div class="hazard-box">
+        <div class="hazard-label">⚠️ STAGE HAZARD</div>
+        <div class="hazard-text">Chain-link walls close in the further you get pushed</div>
+      </div>
+    </div>
+
+    <button class="battle-btn" onclick="showArenaFight()">
+      <span class="battle-btn-text">SELECT STAGE</span>
+    </button>
+  </div>
+
+  <!-- ═══ FIGHTER SCREEN ═══ -->
+  <div class="page" id="page-fighter">
+    <div style="color:#e8c84a;font-size:28px;font-weight:900;letter-spacing:4px;margin-bottom:4px;text-align:center;">SELECT FIGHTER</div>
+    <div style="color:#444;font-size:12px;text-align:center;margin-bottom:20px;">24 characters  •  Current: APEX</div>
+
+    <div class="char-grid">
+      <!-- Free -->
+      <div class="char-card active" onclick="selectChar(this,'#1a73e8')">
+        <div class="char-card-icon">⚡</div>
+        <div class="char-card-name" style="color:#1a73e8">APEX</div>
+        <div class="char-card-sub">Tech CEO / Exo-Suit</div>
+        <div class="archetype-pill" style="background:rgba(26,115,232,0.2)"><span class="archetype-text" style="color:#4fc3f7">BALANCED</span></div>
+        <div class="active-badge">ACTIVE</div>
+      </div>
+      <div class="char-card" onclick="selectChar(this,'#e53935')">
+        <div class="char-card-icon">🔥</div>
+        <div class="char-card-name" style="color:#e53935">VENOM</div>
+        <div class="char-card-sub">Street Racer / Drifter</div>
+        <div class="archetype-pill" style="background:rgba(229,57,53,0.2)"><span class="archetype-text" style="color:#ff6f00">RUSHDOWN</span></div>
+      </div>
+      <div class="char-card locked">
+        <div class="char-card-icon">💪</div>
+        <div class="char-card-name" style="color:#388e3c">TITAN</div>
+        <div class="char-card-sub">Pro Athlete</div>
+        <div class="archetype-pill" style="background:rgba(56,142,60,0.2)"><span class="archetype-text" style="color:#b2ff59">POWERHOUSE</span></div>
+        <div class="lock-badge afford">🔒 500g</div>
+      </div>
+      <div class="char-card locked">
+        <div class="char-card-icon">👻</div>
+        <div class="char-card-name" style="color:#7b1fa2">GHOST</div>
+        <div class="char-card-sub">Parkour / Free Runner</div>
+        <div class="archetype-pill" style="background:rgba(123,31,162,0.2)"><span class="archetype-text" style="color:#ce93d8">TRICKSTER</span></div>
+        <div class="lock-badge afford">🔒 500g</div>
+      </div>
+      <div class="char-card locked">
+        <div class="char-card-icon">☠️</div>
+        <div class="char-card-name" style="color:#ff1744">REAPER</div>
+        <div class="char-card-sub">Assassin / Shadow Killer</div>
+        <div class="archetype-pill" style="background:rgba(255,23,68,0.1)"><span class="archetype-text" style="color:#ff6d6d">ASSASSIN</span></div>
+        <div class="lock-badge">🔒 1,500g</div>
+      </div>
+      <div class="char-card locked">
+        <div class="char-card-icon">🦑</div>
+        <div class="char-card-name" style="color:#4dd0e1">KRAKEN</div>
+        <div class="char-card-sub">Deep Sea / Leviathan</div>
+        <div class="archetype-pill" style="background:rgba(0,96,100,0.2)"><span class="archetype-text" style="color:#4dd0e1">TANK</span></div>
+        <div class="lock-badge">🔒 3,000g</div>
+      </div>
+    </div>
+
+    <!-- Selected detail -->
+    <div class="card" style="border-color:rgba(26,115,232,0.4)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <div style="font-size:44px">⚡</div>
+        <div>
+          <div style="color:#1a73e8;font-size:28px;font-weight:900;letter-spacing:3px;">APEX</div>
+          <div style="color:#555;font-size:12px;margin-top:2px;">Tech CEO / Exo-Suit</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:#666;line-height:1.6;margin-bottom:14px;font-style:italic;">
+        "Former Silicon Valley CEO who bankrolled an illegal exo-suit program. Now he fights to prove machines have no soul — only power."
+      </div>
+      <!-- Stat bars -->
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="color:#555;font-size:11px;width:30px;font-weight:700;">HP</span>
+          <div style="flex:1;height:6px;background:#2a2a3a;border-radius:3px;overflow:hidden;"><div style="width:67%;height:6px;background:#e74c3c;border-radius:3px;"></div></div>
+          <span style="color:#e74c3c;font-size:12px;font-weight:700;width:32px;text-align:right;">200</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="color:#555;font-size:11px;width:30px;font-weight:700;">ATK</span>
+          <div style="flex:1;height:6px;background:#2a2a3a;border-radius:3px;overflow:hidden;"><div style="width:55%;height:6px;background:#e8c84a;border-radius:3px;"></div></div>
+          <span style="color:#e8c84a;font-size:12px;font-weight:700;width:32px;text-align:right;">55</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="color:#555;font-size:11px;width:30px;font-weight:700;">DEF</span>
+          <div style="flex:1;height:6px;background:#2a2a3a;border-radius:3px;overflow:hidden;"><div style="width:50%;height:6px;background:#4a9eff;border-radius:3px;"></div></div>
+          <span style="color:#4a9eff;font-size:12px;font-weight:700;width:32px;text-align:right;">50</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="color:#555;font-size:11px;width:30px;font-weight:700;">SPD</span>
+          <div style="flex:1;height:6px;background:#2a2a3a;border-radius:3px;overflow:hidden;"><div style="width:60%;height:6px;background:#2ecc71;border-radius:3px;"></div></div>
+          <span style="color:#2ecc71;font-size:12px;font-weight:700;width:32px;text-align:right;">90</span>
+        </div>
+      </div>
+      <div style="background:rgba(26,115,232,0.1);border-radius:10px;padding:14px;margin-bottom:14px;">
+        <div style="color:#4fc3f7;font-size:14px;font-weight:800;letter-spacing:1px;margin-bottom:4px;">✦ Market Crash</div>
+        <div style="color:#aaa;font-size:13px;line-height:1.5;">Charges gauntlets and fires a bolt of electric energy forward</div>
+        <div style="height:1px;background:#2a2a3a;margin:10px 0;"></div>
+        <div style="color:#1a73e8;font-size:12px;font-weight:800;letter-spacing:1px;margin-bottom:4px;">★ System Override</div>
+        <div style="color:#aaa;font-size:13px;line-height:1.5;">Full exo-suit activation: 5-second armor mode with enhanced speed and damage</div>
+      </div>
+      <button style="width:100%;background:#1a73e8;border:none;border-radius:12px;padding:16px;cursor:pointer;">
+        <span style="color:#fff;font-weight:900;font-size:15px;letter-spacing:2px;">SELECTED</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ MOVES SCREEN ═══ -->
+  <div class="page" id="page-moves">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+      <div style="color:#e8c84a;font-size:28px;font-weight:900;letter-spacing:2px;">⚔️ MOVES</div>
+      <div style="background:rgba(232,200,74,0.13);border-radius:20px;padding:6px 14px;border:1px solid rgba(232,200,74,0.27);">
+        <span style="color:#e8c84a;font-weight:700;font-size:14px;">💰 2,840g</span>
+      </div>
+    </div>
+    <div style="color:#555;font-size:12px;margin-bottom:12px;">12 moves unlocked  •  LVL 7</div>
+
+    <div class="tier-scroll">
+      <div class="tier-tab active-common" onclick="switchTier(this,'common','#aaa')"><span class="tier-text" style="color:#aaa">COMMON</span></div>
+      <div class="tier-tab" onclick="switchTier(this,'uncommon','#2ecc71')"><span class="tier-text" style="color:#555">UNCOMMON</span></div>
+      <div class="tier-tab" onclick="switchTier(this,'rare','#4a9eff')"><span class="tier-text" style="color:#555">RARE</span></div>
+      <div class="tier-tab" onclick="switchTier(this,'epic','#b44aff')"><span class="tier-text" style="color:#555">EPIC</span></div>
+      <div class="tier-tab" onclick="switchTier(this,'legendary','#ff9000')"><span class="tier-text" style="color:#555">LEGENDARY</span></div>
+      <div class="tier-tab" onclick="switchTier(this,'op','#ff2d78')"><span class="tier-text" style="color:#555">⚠️ OVERPOWERED</span></div>
+    </div>
+
+    <div id="moves-list">
+      <div class="move-card" style="border-color:rgba(170,170,170,0.4);background:rgba(170,170,170,0.05);">
+        <div class="move-header">
+          <div class="move-icon">👊</div>
+          <div class="move-info"><div class="move-name" style="color:#aaa">Quick Jab</div><div class="move-desc">Fast two-punch combo</div></div>
+          <div><div class="owned-badge" style="color:#aaa">✓ OWNED</div></div>
+        </div>
+      </div>
+      <div class="move-card" style="border-color:rgba(170,170,170,0.4);background:rgba(170,170,170,0.05);">
+        <div class="move-header">
+          <div class="move-icon">🦵</div>
+          <div class="move-info"><div class="move-name" style="color:#aaa">Low Kick</div><div class="move-desc">Sweeps at the ankles</div></div>
+          <div><div class="owned-badge" style="color:#aaa">✓ OWNED</div></div>
+        </div>
+      </div>
+      <div class="move-card">
+        <div class="move-header">
+          <div class="move-icon">💥</div>
+          <div class="move-info"><div class="move-name">Uppercut</div><div class="move-desc">Rising fist strike — launches</div></div>
+          <div><div class="move-cost">50g</div></div>
+        </div>
+      </div>
+      <div class="move-card">
+        <div class="move-header">
+          <div class="move-icon">🌀</div>
+          <div class="move-info"><div class="move-name">Roundhouse</div><div class="move-desc">Wide spinning kick</div></div>
+          <div><div class="move-cost">75g</div></div>
+        </div>
+      </div>
+      <div class="move-card">
+        <div class="move-header">
+          <div class="move-icon">🌪️</div>
+          <div class="move-info"><div class="move-name">Whirlwind Kick</div><div class="move-desc">Multi-hit spin attack</div></div>
+          <div style="text-align:right"><div class="move-cost" style="color:#4a9eff">700g</div><div style="color:#e74c3c;font-size:10px;margin-top:2px;">RARE</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ WEAPONS SCREEN ═══ -->
+  <div class="page" id="page-weapons">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="color:#e8c84a;font-size:28px;font-weight:900;letter-spacing:2px;">🗡️ WEAPONS</div>
+      <div style="background:rgba(232,200,74,0.13);border-radius:20px;padding:6px 14px;border:1px solid rgba(232,200,74,0.27);">
+        <span style="color:#e8c84a;font-weight:700;font-size:14px;">💰 2,840g</span>
+      </div>
+    </div>
+
+    <div class="weapon-row" style="margin-bottom:16px;">
+      <div class="weapon-slot">
+        <div class="weapon-slot-label">LEFT HAND</div>
+        <div style="font-size:28px;margin-bottom:4px;">⚔️</div>
+        <div class="weapon-slot-name">KATANA</div>
+      </div>
+      <div class="weapon-slot">
+        <div class="weapon-slot-label">RIGHT HAND</div>
+        <div style="font-size:28px;margin-bottom:4px;">✋</div>
+        <div class="weapon-slot-empty">EMPTY</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <div style="flex:1;background:rgba(170,170,170,0.1);border:1px solid #aaa;border-radius:10px;padding:8px;text-align:center;cursor:pointer;">
+        <span style="color:#aaa;font-size:9px;font-weight:800;letter-spacing:1px;">COMMON</span>
+      </div>
+      <div style="flex:1;background:#12121a;border:1px solid #2a2a3a;border-radius:10px;padding:8px;text-align:center;cursor:pointer;">
+        <span style="color:#555;font-size:9px;font-weight:800;letter-spacing:1px;">RARE</span>
+      </div>
+      <div style="flex:1;background:#12121a;border:1px solid #2a2a3a;border-radius:10px;padding:8px;text-align:center;cursor:pointer;">
+        <span style="color:#555;font-size:9px;font-weight:800;letter-spacing:1px;">EPIC</span>
+      </div>
+      <div style="flex:1;background:#12121a;border:1px solid #2a2a3a;border-radius:10px;padding:8px;text-align:center;cursor:pointer;">
+        <span style="color:#555;font-size:9px;font-weight:800;letter-spacing:1px;">LEGENDARY</span>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="card" style="border-color:rgba(170,170,170,0.3);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:28px;">🥊</span>
+          <div style="flex:1"><div style="color:#fff;font-size:15px;font-weight:800;">Iron Knuckles</div><div style="color:#444;font-size:9px;letter-spacing:1px;margin-top:2px;">GAUNTLETS</div></div>
+          <div style="color:#e8c84a;font-weight:700;font-size:13px;">200g</div>
+        </div>
+      </div>
+      <div class="card" style="border-color:rgba(170,170,170,0.3);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:28px;">🔪</span>
+          <div style="flex:1"><div style="color:#fff;font-size:15px;font-weight:800;">Short Blade</div><div style="color:#444;font-size:9px;letter-spacing:1px;margin-top:2px;">BLADE</div></div>
+          <div style="color:#e8c84a;font-weight:700;font-size:13px;">250g</div>
+        </div>
+      </div>
+      <div class="card" style="border-color:rgba(170,170,170,0.3);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:28px;">⛓️</span>
+          <div style="flex:1"><div style="color:#fff;font-size:15px;font-weight:800;">Chain Whip</div><div style="color:#444;font-size:9px;letter-spacing:1px;margin-top:2px;">CHAIN</div></div>
+          <div style="color:#e8c84a;font-weight:700;font-size:13px;">300g</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tabbar">
+    <div class="tab active" onclick="switchTab('home',this)">
+      <div class="tab-icon">🏠</div><div class="tab-label">HOME</div>
+    </div>
+    <div class="tab" onclick="switchTab('arena',this)">
+      <div class="tab-icon">⚔️</div><div class="tab-label">ARENA</div>
+    </div>
+    <div class="tab" onclick="switchTab('fighter',this)">
+      <div class="tab-icon">👤</div><div class="tab-label">FIGHTER</div>
+    </div>
+    <div class="tab" onclick="switchTab('moves',this)">
+      <div class="tab-icon">🥋</div><div class="tab-label">MOVES</div>
+    </div>
+    <div class="tab" onclick="switchTab('weapons',this)">
+      <div class="tab-icon">🗡️</div><div class="tab-label">WEAPONS</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  el.classList.add('active');
+}
+function selectStage(el, bg, border) {
+  document.querySelectorAll('.stage-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+function selectChar(el, color) {
+  document.querySelectorAll('.char-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+function switchTier(el, tier, color) {
+  document.querySelectorAll('.tier-tab').forEach(t => {
+    t.className = 'tier-tab';
+    t.querySelector('.tier-text').style.color = '#555';
+  });
+  el.className = 'tier-tab active-' + (tier === 'op' ? 'op' : tier);
+  el.querySelector('.tier-text').style.color = color;
+}
+</script>
+</body>
+</html>
