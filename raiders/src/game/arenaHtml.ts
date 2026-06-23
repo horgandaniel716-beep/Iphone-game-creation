@@ -76,8 +76,29 @@ export function buildArenaHtml(
   playerRole: 'p1' | 'p2' = 'p1',
   matchId: string = ''
 ): string {
-  const p   = JSON.stringify(playerChar);
-  const o   = JSON.stringify(opponentChar);
+  // Apply body size stat multipliers
+  const BODY_MULTS: Record<string, { health: number; attack: number; defense: number; speed: number }> = {
+    runt:     { health: 0.75, attack: 0.9,  defense: 0.8,  speed: 1.3  },
+    standard: { health: 1.0,  attack: 1.0,  defense: 1.0,  speed: 1.0  },
+    brute:    { health: 1.4,  attack: 1.25, defense: 1.3,  speed: 0.7  },
+  };
+  function applySize(char: CharacterDef, fighter: Fighter): CharacterDef {
+    const m = BODY_MULTS[fighter.bodySize ?? 'standard'];
+    return {
+      ...char,
+      stats: {
+        health:  Math.round(char.stats.health  * m.health),
+        attack:  Math.round(char.stats.attack  * m.attack),
+        defense: Math.round(char.stats.defense * m.defense),
+        speed:   Math.round(char.stats.speed   * m.speed),
+      },
+    };
+  }
+  const scaledPlayerChar   = applySize(playerChar, playerFighter);
+  const scaledOpponentChar = applySize(opponentChar, opponentFighter);
+
+  const p   = JSON.stringify(scaledPlayerChar);
+  const o   = JSON.stringify(scaledOpponentChar);
   const pf  = JSON.stringify(playerFighter);
   const of_ = JSON.stringify(opponentFighter);
   const sid = JSON.stringify(stageId);
