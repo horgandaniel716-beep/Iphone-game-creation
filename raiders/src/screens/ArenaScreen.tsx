@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity, Alert } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
-import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+import { collection, doc, getDocs, limit, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useGameStore } from '../store/gameStore';
 import { buildArenaHtml, STAGES, getStageForRank } from '../game/arenaHtml';
@@ -10,13 +10,14 @@ import { getCharacter, CHARACTERS } from '../lib/characters';
 import StageSelectScreen from './StageSelectScreen';
 import MultiplayerLobbyScreen from './MultiplayerLobbyScreen';
 import ScoutingReportScreen from './ScoutingReportScreen';
-import { getNewTrophies } from '../lib/trophies';
+import BossRushScreen from './BossRushScreen';
+import ZombiesScreen from './ZombiesScreen';
 import { detectBuildVariant } from '../lib/moveTypes';
-import { doc, updateDoc } from 'firebase/firestore';
+import { getNewTrophies } from '../lib/trophies';
 import type { Fighter, BattleResult } from '../types';
 import type { MatchState } from '../lib/matchmaking';
 
-type Phase = 'idle' | 'mode_select' | 'stage_select' | 'matchmaking' | 'scouting' | 'battle' | 'multiplayer_lobby';
+type Phase = 'idle' | 'mode_select' | 'stage_select' | 'matchmaking' | 'scouting' | 'battle' | 'multiplayer_lobby' | 'boss_rush' | 'zombies';
 
 // Rank-flavored AI personas — scrappy street names at bottom, legendary names at top
 const BOT_PERSONAS = {
@@ -236,6 +237,14 @@ export default function ArenaScreen() {
     );
   }
 
+  if (phase === 'boss_rush') {
+    return <BossRushScreen onBack={() => setPhase('idle')} />;
+  }
+
+  if (phase === 'zombies') {
+    return <ZombiesScreen onBack={() => setPhase('idle')} />;
+  }
+
   if (phase === 'multiplayer_lobby') {
     return (
       <MultiplayerLobbyScreen
@@ -250,19 +259,53 @@ export default function ArenaScreen() {
   }
 
   if (phase === 'matchmaking') {
+    const stage = STAGES.find((s) => s.id === stageId);
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#e8c84a" />
         <Text style={styles.matchText}>Finding opponent...</Text>
-        <Text style={styles.matchStage}>
-          {STAGES.find((s) => s.id === stageId)?.icon} {STAGES.find((s) => s.id === stageId)?.name}
-        </Text>
+        {stage && <Text style={styles.matchStage}>{stage.icon} {stage.name}</Text>}
       </View>
     );
   }
 
   // ── MODE SELECT ──────────────────────────────────────────────────────────────
   if (phase === 'mode_select') {
+    const MODES = [
+      {
+        icon: '⚔️',
+        name: '1v1 RANKED',
+        desc: 'Solo fight. Earn MMR, gold, and XP. Arena matches your rank.',
+        color: currentChar.primaryColor,
+        onPress: () => startBattle(),
+        live: true,
+      },
+      {
+        icon: '👥',
+        name: '2v2',
+        desc: 'Team up with a partner. Builds become roles. Coming soon.',
+        color: '#4a9eff',
+        onPress: () => Alert.alert('COMING SOON', '2v2 is in development. Invite your partner soon.'),
+        live: false,
+      },
+      {
+        icon: '🧟',
+        name: 'ZOMBIES',
+        desc: 'Survive waves. HP carries between fights. Cash out or keep going.',
+        color: '#e74c3c',
+        onPress: () => setPhase('zombies'),
+        live: true,
+      },
+      {
+        icon: '💀',
+        name: 'BOSS RUSH',
+        desc: 'Fight OP legendary bosses for rare rewards. Warning: they hit different.',
+        color: '#9b59b6',
+        onPress: () => setPhase('boss_rush'),
+        live: true,
+      },
+    ];
+
     return (
       <View style={styles.container}>
         <TouchableOpacity style={styles.backBtn} onPress={() => setPhase('idle')}>
@@ -271,41 +314,24 @@ export default function ArenaScreen() {
         <Text style={styles.title}>SELECT MODE</Text>
         <Text style={styles.subtitle}>HOW DO YOU WANT TO FIGHT?</Text>
 
-        <TouchableOpacity
-          style={[styles.modeCard, { borderColor: currentChar.primaryColor + '66' }]}
-          onPress={() => setPhase('stage_select')}
-        >
-          <Text style={styles.modeIcon}>🤖</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.modeName}>RANKED vs AI</Text>
-            <Text style={styles.modeDesc}>Fight an opponent. Earn gold, XP and MMR.</Text>
-          </View>
-          <Text style={styles.modeArrow}>›</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.modeCard, { borderColor: '#4a9eff66' }]}
-          onPress={() => setPhase('multiplayer_lobby')}
-        >
-          <Text style={styles.modeIcon}>📱</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.modeName}>1v1 LIVE</Text>
-            <Text style={styles.modeDesc}>Fight a friend side by side in real time. Share a code.</Text>
-          </View>
-          <Text style={styles.modeArrow}>›</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.modeCard, { borderColor: '#ff440066', opacity: 0.5 }]}
-          onPress={() => {}}
-        >
-          <Text style={styles.modeIcon}>🧟</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.modeName}>ZOMBIES — COMING SOON</Text>
-            <Text style={styles.modeDesc}>Survive wave after wave with your clan.</Text>
-          </View>
-          <Text style={styles.modeArrow}>›</Text>
-        </TouchableOpacity>
+        {MODES.map((m) => (
+          <TouchableOpacity
+            key={m.name}
+            style={[styles.modeCard, { borderColor: m.color + (m.live ? '66' : '33') }, !m.live && { opacity: 0.55 }]}
+            onPress={m.onPress}
+            activeOpacity={m.live ? 0.7 : 0.9}
+          >
+            <Text style={styles.modeIcon}>{m.icon}</Text>
+            <View style={{ flex: 1 }}>
+              <View style={styles.modeNameRow}>
+                <Text style={[styles.modeName, { color: m.live ? '#fff' : '#555' }]}>{m.name}</Text>
+                {!m.live && <View style={styles.soonBadge}><Text style={styles.soonText}>SOON</Text></View>}
+              </View>
+              <Text style={styles.modeDesc}>{m.desc}</Text>
+            </View>
+            <Text style={[styles.modeArrow, { color: m.live ? m.color : '#2a2a3a' }]}>›</Text>
+          </TouchableOpacity>
+        ))}
       </View>
     );
   }
@@ -326,7 +352,6 @@ export default function ArenaScreen() {
         </View>
       </View>
 
-      {/* Stats preview */}
       <View style={styles.statsRow}>
         <StatBubble icon="❤️" label="HP" value={String(currentChar.stats.health)} />
         <StatBubble icon="⚔️" label="ATK" value={String(currentChar.stats.attack)} />
@@ -334,7 +359,6 @@ export default function ArenaScreen() {
         <StatBubble icon="💨" label="SPD" value={String(currentChar.stats.speed)} />
       </View>
 
-      {/* Controls guide */}
       <View style={styles.guide}>
         <Text style={styles.guideTitle}>CONTROLS</Text>
         <View style={styles.guideRow}>
@@ -412,7 +436,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, marginBottom: 12,
   },
   modeIcon: { fontSize: 32 },
-  modeName: { color: '#fff', fontSize: 15, fontWeight: '900', marginBottom: 3 },
+  modeNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 },
+  modeName: { fontSize: 15, fontWeight: '900' },
+  soonBadge: { backgroundColor: '#1a1a2e', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  soonText: { color: '#444', fontSize: 8, fontWeight: '800', letterSpacing: 1 },
   modeDesc: { color: '#555', fontSize: 11, lineHeight: 15 },
-  modeArrow: { color: '#333', fontSize: 22 },
+  modeArrow: { fontSize: 22 },
 });

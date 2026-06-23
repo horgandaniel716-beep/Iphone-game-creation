@@ -179,16 +179,12 @@ export const STAGES: Stage[] = [
   },
 ];
 
-// Returns the appropriate stage for the given average MMR
+// 3-tier arena progression — street → stadium → void
+// More arenas unlock as the game grows
 export function getStageForRank(mmr: number): StageId {
-  if (mmr >= 7000) return 'void_throne';
-  if (mmr >= 6000) return 'skyscraper';
-  if (mmr >= 5000) return 'colosseum';
-  if (mmr >= 4000) return 'stadium';
-  if (mmr >= 3000) return 'underground';
-  if (mmr >= 2000) return 'warehouse';
-  if (mmr >= 1000) return 'back_alley';
-  return 'wheat_field';
+  if (mmr >= 5000) return 'void_throne';   // top tier: void
+  if (mmr >= 2000) return 'stadium';        // mid tier: stadium
+  return 'back_alley';                      // bottom tier: the streets
 }
 
 export function buildArenaHtml(
