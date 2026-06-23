@@ -1,13 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
-import type { Demon, DemonAbility, DemonStats, VisualTraits } from '../types';
-
-const client = new Anthropic({
-  apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY || '',
-});
-
-const RARITIES = ['common', 'rare', 'epic', 'legendary'] as const;
-const COLORS = ['crimson', 'violet', 'teal', 'gold', 'obsidian', 'silver', 'emerald', 'amber'];
-const SIZES = ['small', 'medium', 'large', 'massive'] as const;
+import type { Demon, DemonStats } from '../types';
 
 function rollRarity(): Demon['rarity'] {
   const roll = Math.random();
@@ -32,13 +23,24 @@ export async function generateDemon(prompt: string): Promise<Demon> {
   const rarity = rollRarity();
   const stats = statsByRarity(rarity);
 
-  const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 800,
-    messages: [
-      {
-        role: 'user',
-        content: `You are a dark fantasy game master. Generate a unique demon guardian for a player's base.
+  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error('Anthropic API key not set');
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 800,
+      messages: [
+        {
+          role: 'user',
+          content: `You are a dark fantasy game master. Generate a unique demon guardian for a player's base.
 Player's description: "${prompt}"
 Rarity: ${rarity}
 
@@ -67,11 +69,15 @@ Respond ONLY with valid JSON matching this exact schema:
 
 Make exactly 2 abilities for common, 3 for rare, 4 for epic, 5 for legendary.
 Be creative and sinister. No markdown, just the JSON object.`,
-      },
-    ],
+        },
+      ],
+    }),
   });
 
-  const text = message.content[0].type === 'text' ? message.content[0].text : '';
+  if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+  const data = await response.json();
+  const text = data.content[0].type === 'text' ? data.content[0].text : '';
   const parsed = JSON.parse(text);
 
   return {
