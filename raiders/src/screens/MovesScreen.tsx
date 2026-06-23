@@ -6,6 +6,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useGameStore } from '../store/gameStore';
 import { MOVES, MOVE_TIER_COLORS, getMovesByTier } from '../lib/moves';
+import { MOVE_TYPE_MAP, MOVE_TYPES } from '../lib/moveTypes';
 import type { Move } from '../types';
 
 const TIERS: Move['tier'][] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'overpowered'];
@@ -118,6 +119,9 @@ export default function MovesScreen() {
           const meetsLevel = (fighter?.level ?? 0) >= move.unlockLevel;
           const color = MOVE_TIER_COLORS[move.tier];
 
+          const moveType = MOVE_TYPE_MAP[move.id];
+          const typeInfo = moveType ? MOVE_TYPES[moveType] : null;
+
           return (
             <TouchableOpacity
               key={move.id}
@@ -127,7 +131,15 @@ export default function MovesScreen() {
               <View style={styles.moveHeader}>
                 <Text style={styles.moveIcon}>{move.icon}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.moveName, { color: isUnlocked ? color : '#fff' }]}>{move.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={[styles.moveName, { color: isUnlocked ? color : '#fff' }]}>{move.name}</Text>
+                    {typeInfo && (
+                      <View style={[styles.typePill, { backgroundColor: typeInfo.color + '22', borderColor: typeInfo.color + '55' }]}>
+                        <Text style={{ fontSize: 9 }}>{typeInfo.icon}</Text>
+                        <Text style={[styles.typeText, { color: typeInfo.color }]}>{typeInfo.label}</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.moveDesc}>{move.description}</Text>
                 </View>
                 <View style={styles.moveRight}>
@@ -221,6 +233,8 @@ const styles = StyleSheet.create({
   effects: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
   effectPill: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
   effectText: { fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
+  typePill: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
+  typeText: { fontSize: 8, fontWeight: '800', letterSpacing: 0.5 },
   unlockButton: { borderRadius: 10, padding: 14, alignItems: 'center' },
   unlockButtonText: { color: '#fff', fontWeight: '900', fontSize: 13, letterSpacing: 1 },
 });

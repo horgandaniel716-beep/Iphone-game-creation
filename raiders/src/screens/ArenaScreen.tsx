@@ -9,10 +9,11 @@ import type { StageId } from '../game/arenaHtml';
 import { getCharacter, CHARACTERS } from '../lib/characters';
 import StageSelectScreen from './StageSelectScreen';
 import MultiplayerLobbyScreen from './MultiplayerLobbyScreen';
+import ScoutingReportScreen from './ScoutingReportScreen';
 import type { Fighter, BattleResult } from '../types';
 import type { MatchState } from '../lib/matchmaking';
 
-type Phase = 'idle' | 'mode_select' | 'stage_select' | 'matchmaking' | 'battle' | 'multiplayer_lobby';
+type Phase = 'idle' | 'mode_select' | 'stage_select' | 'matchmaking' | 'scouting' | 'battle' | 'multiplayer_lobby';
 
 function makeBotFighter(level: number): Fighter {
   const names = ['Shadow', 'Vex', 'Krom', 'Zira', 'Nox', 'Dusk', 'Cipher', 'Raze', 'Blaze', 'Hex'];
@@ -37,6 +38,7 @@ export default function ArenaScreen() {
   const [phase, setPhase]   = useState<Phase>('idle');
   const [stageId, setStageId] = useState<StageId>('favelas');
   const [html, setHtml]     = useState('');
+  const [pendingOpponent, setPendingOpponent] = useState<Fighter | null>(null);
   const webRef = useRef<WebView<object>>(null);
 
   async function startBattle(sid: StageId) {
@@ -55,10 +57,8 @@ export default function ArenaScreen() {
     } catch {
       opponent = makeBotFighter(Math.max(1, fighter.level + Math.floor(Math.random() * 3 - 1)));
     }
-    const playerChar   = getCharacter(fighter.selectedCharacter);
-    const opponentChar = getCharacter(opponent.selectedCharacter);
-    setHtml(buildArenaHtml(fighter, playerChar, opponent, opponentChar, sid));
-    setPhase('battle');
+    setPendingOpponent(opponent);
+    setPhase('scouting');
   }
 
   function startMultiplayerBattle(matchState: MatchState, role: 'p1' | 'p2') {
@@ -100,6 +100,22 @@ export default function ArenaScreen() {
   }
 
   const currentChar = getCharacter(fighter?.selectedCharacter ?? 'apex');
+
+  if (phase === 'scouting' && fighter && pendingOpponent) {
+    return (
+      <ScoutingReportScreen
+        player={fighter}
+        opponent={pendingOpponent}
+        onBack={() => { setPendingOpponent(null); setPhase('stage_select'); }}
+        onConfirm={() => {
+          const playerChar   = getCharacter(fighter.selectedCharacter);
+          const opponentChar = getCharacter(pendingOpponent.selectedCharacter);
+          setHtml(buildArenaHtml(fighter, playerChar, pendingOpponent, opponentChar, stageId));
+          setPhase('battle');
+        }}
+      />
+    );
+  }
 
   if (phase === 'battle') {
     return (

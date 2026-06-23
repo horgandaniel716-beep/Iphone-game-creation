@@ -60,6 +60,9 @@ export interface Fighter {
   unlockedMoves?: string[];
   weaponSlot1?: string | null;
   weaponSlot2?: string | null;
+  trinket1?: string | null;
+  trinket2?: string | null;
+  bodySize?: 'runt' | 'standard' | 'brute';
 }
 
 export interface FighterStats {
