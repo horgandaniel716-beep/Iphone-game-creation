@@ -1,21 +1,16 @@
 import React, { useRef, useState } from 'react';
-import {
-  View,
-  StyleSheet,
-  ActivityIndicator,
-  Text,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useGameStore } from '../store/gameStore';
-import { buildArenaHtml } from '../game/arenaHtml';
+import { buildArenaHtml, STAGES } from '../game/arenaHtml';
+import type { StageId } from '../game/arenaHtml';
 import { getCharacter, CHARACTERS } from '../lib/characters';
+import StageSelectScreen from './StageSelectScreen';
 import type { Fighter, BattleResult } from '../types';
 
-type Phase = 'idle' | 'matchmaking' | 'battle';
+type Phase = 'idle' | 'stage_select' | 'matchmaking' | 'battle';
 
 function makeBotFighter(level: number): Fighter {
   const names = ['Shadow', 'Vex', 'Krom', 'Zira', 'Nox', 'Dusk', 'Cipher', 'Raze'];
@@ -37,34 +32,32 @@ function makeBotFighter(level: number): Fighter {
 
 export default function ArenaScreen() {
   const { fighter, addCurrency, addXP, recordBattle } = useGameStore();
-  const [phase, setPhase] = useState<Phase>('idle');
-  const [html, setHtml] = useState('');
+  const [phase, setPhase]       = useState<Phase>('idle');
+  const [stageId, setStageId]   = useState<StageId>('favelas');
+  const [html, setHtml]         = useState('');
   const webRef = useRef<WebView<object>>(null);
 
-  async function startBattle() {
+  async function startBattle(sid: StageId) {
     if (!fighter) return;
+    setStageId(sid);
     setPhase('matchmaking');
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 1400));
 
     let opponent: Fighter;
     try {
       const snap = await getDocs(
         query(collection(db, 'fighters'), where('userId', '!=', fighter.userId), limit(10))
       );
-      if (!snap.empty) {
-        const docs = snap.docs.map((d) => d.data() as Fighter);
-        opponent = docs[Math.floor(Math.random() * docs.length)];
-      } else {
-        opponent = makeBotFighter(Math.max(1, fighter.level + Math.floor(Math.random() * 3 - 1)));
-      }
+      opponent = !snap.empty
+        ? snap.docs.map((d) => d.data() as Fighter)[Math.floor(Math.random() * snap.docs.length)]
+        : makeBotFighter(Math.max(1, fighter.level + Math.floor(Math.random() * 3 - 1)));
     } catch {
       opponent = makeBotFighter(Math.max(1, fighter.level + Math.floor(Math.random() * 3 - 1)));
     }
 
     const playerChar   = getCharacter(fighter.selectedCharacter);
     const opponentChar = getCharacter(opponent.selectedCharacter);
-    const gameHtml     = buildArenaHtml(fighter, playerChar, opponent, opponentChar);
-    setHtml(gameHtml);
+    setHtml(buildArenaHtml(fighter, playerChar, opponent, opponentChar, sid));
     setPhase('battle');
   }
 
@@ -106,6 +99,14 @@ export default function ArenaScreen() {
     );
   }
 
+  if (phase === 'stage_select') {
+    return (
+      <StageSelectScreen
+        onSelect={(sid) => startBattle(sid)}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>⚔️ ARENA</Text>
@@ -115,10 +116,13 @@ export default function ArenaScreen() {
         <View style={styles.matchmaking}>
           <ActivityIndicator size="large" color="#e8c84a" />
           <Text style={styles.matchText}>Finding opponent...</Text>
+          <Text style={styles.matchStage}>
+            Stage: {STAGES.find((s) => s.id === stageId)?.icon} {STAGES.find((s) => s.id === stageId)?.name}
+          </Text>
         </View>
       ) : (
         <>
-          {/* Current fighter card */}
+          {/* Fighter card */}
           <View style={[styles.fighterCard, { borderColor: currentChar.primaryColor + '66' }]}>
             <Text style={styles.fighterIcon}>{currentChar.icon}</Text>
             <View style={{ flex: 1 }}>
@@ -135,13 +139,13 @@ export default function ArenaScreen() {
             </View>
           </View>
 
-          {/* Controls guide */}
+          {/* Controls */}
           <View style={styles.guide}>
             <Text style={styles.guideTitle}>CONTROLS</Text>
             <View style={styles.guideRow}>
               <View style={styles.guideItem}>
                 <Text style={styles.guideKey}>🕹️</Text>
-                <Text style={styles.guideDesc}>Left side — joystick{'\n'}move + jump + crouch</Text>
+                <Text style={styles.guideDesc}>Left — joystick{'\n'}move + jump + crouch</Text>
               </View>
               <View style={styles.guideItem}>
                 <Text style={styles.guideKey}>L / H / K</Text>
@@ -149,19 +153,19 @@ export default function ArenaScreen() {
               </View>
               <View style={styles.guideItem}>
                 <Text style={[styles.guideKey, { color: currentChar.accentColor }]}>SP</Text>
-                <Text style={styles.guideDesc}>{currentChar.specialName}{'\n'}special move</Text>
+                <Text style={styles.guideDesc}>{currentChar.specialName}</Text>
               </View>
             </View>
             <Text style={styles.guideTip}>
-              💡 Hold back to block • Tap fast for combos
+              💊 Run to artifact pickups mid-fight — risky but worth it
             </Text>
           </View>
 
           <TouchableOpacity
             style={[styles.battleButton, { backgroundColor: currentChar.primaryColor }]}
-            onPress={startBattle}
+            onPress={() => setPhase('stage_select')}
           >
-            <Text style={styles.battleButtonText}>FIGHT</Text>
+            <Text style={styles.battleButtonText}>SELECT STAGE</Text>
           </TouchableOpacity>
         </>
       )}
@@ -177,21 +181,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
-    color: '#e8c84a',
-    fontSize: 42,
-    fontWeight: '900',
-    letterSpacing: 4,
-    marginBottom: 4,
-  },
-  subtitle: {
-    color: '#444',
-    fontSize: 10,
-    letterSpacing: 2,
-    marginBottom: 28,
-  },
-  matchmaking: { alignItems: 'center', gap: 16 },
+  title: { color: '#e8c84a', fontSize: 42, fontWeight: '900', letterSpacing: 4, marginBottom: 4 },
+  subtitle: { color: '#444', fontSize: 10, letterSpacing: 2, marginBottom: 28 },
+  matchmaking: { alignItems: 'center', gap: 12 },
   matchText: { color: '#aaa', fontSize: 16 },
+  matchStage: { color: '#555', fontSize: 13 },
   fighterCard: {
     width: '100%',
     backgroundColor: '#12121a',
@@ -223,16 +217,6 @@ const styles = StyleSheet.create({
   guideKey: { color: '#e8c84a', fontWeight: '800', fontSize: 15, marginBottom: 4 },
   guideDesc: { color: '#666', fontSize: 10, textAlign: 'center', lineHeight: 14 },
   guideTip: { color: '#444', fontSize: 11, textAlign: 'center', fontStyle: 'italic' },
-  battleButton: {
-    width: '100%',
-    borderRadius: 14,
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  battleButtonText: {
-    color: '#fff',
-    fontWeight: '900',
-    fontSize: 22,
-    letterSpacing: 6,
-  },
+  battleButton: { width: '100%', borderRadius: 14, paddingVertical: 20, alignItems: 'center' },
+  battleButtonText: { color: '#fff', fontWeight: '900', fontSize: 22, letterSpacing: 4 },
 });
