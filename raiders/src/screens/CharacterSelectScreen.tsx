@@ -20,11 +20,20 @@ const ARCHETYPE_LABEL: Record<string, string> = {
   trickster:  'TRICKSTER',
 };
 
+type BodySize = 'runt' | 'standard' | 'brute';
+
+const BODY_SIZES: { id: BodySize; label: string; icon: string; desc: string; multipliers: { health: number; attack: number; defense: number; speed: number } }[] = [
+  { id: 'runt',     label: 'RUNT',     icon: '🐀', desc: '+SPD +AGI  —  -HP -DEF',  multipliers: { health: 0.75, attack: 0.9,  defense: 0.8,  speed: 1.3  } },
+  { id: 'standard', label: 'STANDARD', icon: '⚖️', desc: 'Balanced. Pure skill.',    multipliers: { health: 1.0,  attack: 1.0,  defense: 1.0,  speed: 1.0  } },
+  { id: 'brute',    label: 'BRUTE',    icon: '🦍', desc: '+HP +ATK +DEF  —  -SPD',  multipliers: { health: 1.4,  attack: 1.25, defense: 1.3,  speed: 0.7  } },
+];
+
 export default function CharacterSelectScreen() {
   const { fighter, setFighter } = useGameStore();
   const [selected, setSelected] = useState<CharacterDef>(
     CHARACTERS.find((c) => c.id === fighter?.selectedCharacter) ?? CHARACTERS[0]
   );
+  const [bodySize, setBodySize] = useState<BodySize>(fighter?.bodySize ?? 'standard');
 
   async function confirmSelect() {
     if (!fighter) return;
@@ -38,18 +47,27 @@ export default function CharacterSelectScreen() {
     }
 
     const newCurrency = alreadyOwned ? fighter.currency : fighter.currency - selected.unlockCost;
-    const updated = { ...fighter, selectedCharacter: selected.id, currency: newCurrency };
+    const updated = { ...fighter, selectedCharacter: selected.id, currency: newCurrency, bodySize };
     setFighter(updated);
 
     if (fighter.userId !== 'bot') {
       await updateDoc(doc(db, 'fighters', fighter.userId), {
         selectedCharacter: selected.id,
         currency: newCurrency,
+        bodySize,
       });
     }
 
-    Alert.alert('Character Selected', `${selected.name} is ready to fight.`);
+    Alert.alert('Fighter Ready', `${selected.name} (${bodySize.toUpperCase()}) locked in.`);
   }
+
+  const sizeInfo = BODY_SIZES.find((s) => s.id === bodySize)!;
+  const scaledStats = {
+    health:  Math.round(selected.stats.health  * sizeInfo.multipliers.health),
+    attack:  Math.round(selected.stats.attack  * sizeInfo.multipliers.attack),
+    defense: Math.round(selected.stats.defense * sizeInfo.multipliers.defense),
+    speed:   Math.round(selected.stats.speed   * sizeInfo.multipliers.speed),
+  };
 
   const currentChar = CHARACTERS.find((c) => c.id === fighter?.selectedCharacter) ?? CHARACTERS[0];
 
@@ -107,11 +125,27 @@ export default function CharacterSelectScreen() {
           </View>
         </View>
 
+        {/* Body size selector */}
+        <Text style={styles.sizeLabel}>BODY SIZE</Text>
+        <View style={styles.sizeRow}>
+          {BODY_SIZES.map((s) => (
+            <TouchableOpacity
+              key={s.id}
+              style={[styles.sizeBtn, bodySize === s.id && { borderColor: selected.primaryColor, backgroundColor: selected.primaryColor + '22' }]}
+              onPress={() => setBodySize(s.id)}
+            >
+              <Text style={{ fontSize: 22 }}>{s.icon}</Text>
+              <Text style={[styles.sizeName, bodySize === s.id && { color: selected.primaryColor }]}>{s.label}</Text>
+              <Text style={styles.sizeDesc}>{s.desc}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         <View style={styles.statsRow}>
-          <StatBar label="HP"  value={selected.stats.health}  max={300} color="#e74c3c" />
-          <StatBar label="ATK" value={selected.stats.attack}  max={100} color="#e8c84a" />
-          <StatBar label="DEF" value={selected.stats.defense} max={100} color="#4a9eff" />
-          <StatBar label="SPD" value={selected.stats.speed}   max={150} color="#2ecc71" />
+          <StatBar label="HP"  value={scaledStats.health}  max={420} color="#e74c3c" />
+          <StatBar label="ATK" value={scaledStats.attack}  max={130} color="#e8c84a" />
+          <StatBar label="DEF" value={scaledStats.defense} max={130} color="#4a9eff" />
+          <StatBar label="SPD" value={scaledStats.speed}   max={200} color="#2ecc71" />
         </View>
 
         <View style={[styles.specialBox, { backgroundColor: selected.primaryColor + '22' }]}>
@@ -126,11 +160,11 @@ export default function CharacterSelectScreen() {
           onPress={confirmSelect}
         >
           <Text style={styles.selectButtonText}>
-            {fighter?.selectedCharacter === selected.id
+            {fighter?.selectedCharacter === selected.id && fighter?.bodySize === bodySize
               ? 'SELECTED'
-              : selected.unlockCost > 0
+              : selected.unlockCost > 0 && fighter?.selectedCharacter !== selected.id
               ? `UNLOCK — ${selected.unlockCost}g`
-              : 'SELECT'}
+              : 'LOCK IN'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -223,4 +257,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectButtonText: { color: '#fff', fontWeight: '900', fontSize: 15, letterSpacing: 2 },
+  sizeLabel: { color: '#333', fontSize: 9, letterSpacing: 2, marginBottom: 8, marginTop: 4 },
+  sizeRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  sizeBtn: { flex: 1, backgroundColor: '#0e0e18', borderRadius: 12, padding: 10, alignItems: 'center', borderWidth: 1, borderColor: '#2a2a3a' },
+  sizeName: { color: '#888', fontSize: 10, fontWeight: '900', letterSpacing: 1, marginTop: 4 },
+  sizeDesc: { color: '#333', fontSize: 8, textAlign: 'center', marginTop: 2 },
 });
