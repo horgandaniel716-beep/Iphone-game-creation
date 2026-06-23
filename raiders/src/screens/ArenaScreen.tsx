@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity, Alert } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -10,6 +10,8 @@ import { getCharacter, CHARACTERS } from '../lib/characters';
 import StageSelectScreen from './StageSelectScreen';
 import MultiplayerLobbyScreen from './MultiplayerLobbyScreen';
 import ScoutingReportScreen from './ScoutingReportScreen';
+import { getNewTrophies } from '../lib/trophies';
+import { detectBuildVariant } from '../lib/moveTypes';
 import type { Fighter, BattleResult } from '../types';
 import type { MatchState } from '../lib/matchmaking';
 
@@ -93,6 +95,26 @@ export default function ArenaScreen() {
         };
         addCurrency(data.currencyEarned);
         addXP(data.xpEarned);
+
+        // Check trophies BEFORE recordBattle updates state
+        if (data.won && fighter) {
+          const newWins = fighter.wins + 1;
+          const newStreak = (fighter.currentStreak ?? 0) + 1;
+          const variant = detectBuildVariant(fighter.unlockedMoves ?? [], newWins);
+          const earned = fighter.earnedTrophies ?? [];
+          const newTrophies = getNewTrophies(newWins, newStreak, fighter.rank?.tier ?? 'bronze', variant.id, earned);
+          if (newTrophies.length > 0) {
+            setTimeout(() => {
+              Alert.alert(
+                '🏆 TROPHY UNLOCKED',
+                newTrophies.map((t) => `${t.icon} ${t.name}\n"${t.displayDesc}"`).join('\n\n') +
+                '\n\nDisplay it in your Dojo.',
+                [{ text: 'LET\'S GO' }]
+              );
+            }, 2000);
+          }
+        }
+
         recordBattle(result);
         setTimeout(() => setPhase('idle'), 3500);
       }

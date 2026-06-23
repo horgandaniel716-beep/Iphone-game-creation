@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import type { Fighter, Base, Demon, BattleResult } from '../types';
 import { defaultRank, mmrToRank, calculateMmrChange } from '../lib/ranking';
+import { getNewTrophies } from '../lib/trophies';
+import { detectBuildVariant } from '../lib/moveTypes';
 
 interface GameState {
   fighter: Fighter | null;
@@ -35,6 +37,8 @@ export const useGameStore = create<GameState>((set) => ({
       unlockedMoves: fighter.unlockedMoves ?? ['jab', 'low_kick'],
       weaponSlot1: fighter.weaponSlot1 ?? null,
       weaponSlot2: fighter.weaponSlot2 ?? null,
+      earnedTrophies: fighter.earnedTrophies ?? [],
+      currentStreak: fighter.currentStreak ?? 0,
     },
   }),
 
@@ -75,6 +79,7 @@ export const useGameStore = create<GameState>((set) => ({
       if (!state.fighter) return {};
       const wins = state.fighter.wins + (result.won ? 1 : 0);
       const losses = state.fighter.losses + (result.won ? 0 : 1);
+      const currentStreak = result.won ? (state.fighter.currentStreak ?? 0) + 1 : 0;
 
       let rank = state.fighter.rank ?? defaultRank();
       if (opponentMmr !== undefined) {
@@ -84,9 +89,15 @@ export const useGameStore = create<GameState>((set) => ({
         result = { ...result, mmrChange };
       }
 
+      // Check for new trophy unlocks
+      const earned = state.fighter.earnedTrophies ?? [];
+      const variant = detectBuildVariant(state.fighter.unlockedMoves ?? [], wins);
+      const newTrophies = getNewTrophies(wins, currentStreak, rank.tier, variant.id, earned);
+      const earnedTrophies = [...earned, ...newTrophies.map((t) => t.id)];
+
       return {
         battleHistory: [result, ...state.battleHistory].slice(0, 50),
-        fighter: { ...state.fighter, wins, losses, rank },
+        fighter: { ...state.fighter, wins, losses, rank, currentStreak, earnedTrophies },
       };
     }),
 

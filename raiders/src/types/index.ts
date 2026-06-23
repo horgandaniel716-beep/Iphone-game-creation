@@ -63,6 +63,8 @@ export interface Fighter {
   trinket1?: string | null;
   trinket2?: string | null;
   bodySize?: 'runt' | 'standard' | 'brute';
+  earnedTrophies?: string[];   // trophy IDs
+  currentStreak?: number;
 }
 
 export interface FighterStats {

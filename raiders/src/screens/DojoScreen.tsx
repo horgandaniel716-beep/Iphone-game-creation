@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal,
 } from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useGameStore } from '../store/gameStore';
+import { TROPHIES, TROPHY_RARITY_COLORS, type TrophyShelf, type Trophy } from '../lib/trophies';
 
 // ── DOJO CUSTOMIZATION OPTIONS ──────────────────────────────────────────────
 
@@ -18,6 +19,7 @@ export interface DojoConfig {
   motto: string;
   emblem: string;
   music: string;
+  trophyShelf: TrophyShelf;  // up to 9 slots in the display case
 }
 
 const DOJO_THEMES = [
@@ -88,7 +90,7 @@ const DOJO_MUSIC = [
 
 const DOJO_EMBLEMS = ['⚔️','🔥','💀','👁️','⚡','🌑','🐉','👑','🩸','☠️','🌀','🪬','🗡️','🛡️','🔮','🦅','🐺','🦁','🐍','🌊'];
 
-type Section = 'overview' | 'theme' | 'floor' | 'walls' | 'lighting' | 'banner' | 'emblem' | 'music' | 'motto';
+type Section = 'overview' | 'theme' | 'floor' | 'walls' | 'lighting' | 'banner' | 'emblem' | 'music' | 'motto' | 'trophies';
 
 const DEFAULT_DOJO: DojoConfig = {
   name: 'THE DOJO',
@@ -100,15 +102,37 @@ const DEFAULT_DOJO: DojoConfig = {
   motto: 'Hit first. Hit last.',
   emblem: '⚔️',
   music: 'silence',
+  trophyShelf: Array(9).fill(null),
 };
 
 export default function DojoScreen() {
   const { fighter } = useGameStore();
-  const [dojo, setDojo] = useState<DojoConfig>((fighter as any)?.dojo ?? DEFAULT_DOJO);
+  const rawDojo = (fighter as any)?.dojo;
+  const [dojo, setDojo] = useState<DojoConfig>({
+    ...DEFAULT_DOJO,
+    ...(rawDojo ?? {}),
+    trophyShelf: rawDojo?.trophyShelf ?? Array(9).fill(null),
+  });
   const [section, setSection] = useState<Section>('overview');
   const [nameInput, setNameInput] = useState(dojo.name);
   const [mottoInput, setMottoInput] = useState(dojo.motto);
   const [saving, setSaving] = useState(false);
+  const [shelfSlotPicker, setShelfSlotPicker] = useState<number | null>(null);
+
+  const earnedTrophies = fighter?.earnedTrophies ?? [];
+  const earnedTrophyObjects = TROPHIES.filter((t) => earnedTrophies.includes(t.id));
+
+  function setShelfSlot(slotIndex: number, trophyId: string | null) {
+    const newShelf = [...(dojo.trophyShelf ?? Array(9).fill(null))];
+    // Remove from any existing slot first
+    if (trophyId) {
+      const existingIdx = newShelf.indexOf(trophyId);
+      if (existingIdx !== -1) newShelf[existingIdx] = null;
+    }
+    newShelf[slotIndex] = trophyId;
+    save({ trophyShelf: newShelf });
+    setShelfSlotPicker(null);
+  }
 
   const theme     = DOJO_THEMES.find((x) => x.id === dojo.theme) ?? DOJO_THEMES[0];
   const floor     = DOJO_FLOORS.find((x) => x.id === dojo.floor) ?? DOJO_FLOORS[0];
@@ -194,6 +218,33 @@ export default function DojoScreen() {
               ))}
             </View>
           )}
+          {section === 'trophies' && (
+            <View style={{ width: '100%' }}>
+              <Text style={[styles.noTrophiesText, { marginBottom: 16 }]}>
+                {earnedTrophyObjects.length} / {TROPHIES.length} trophies earned
+              </Text>
+              {TROPHIES.map((trophy) => {
+                const isEarned = earnedTrophies.includes(trophy.id);
+                const rc = isEarned ? TROPHY_RARITY_COLORS[trophy.rarity] : '#2a2a3a';
+                return (
+                  <View key={trophy.id} style={[styles.trophyListRow, !isEarned && { opacity: 0.3 }]}>
+                    <Text style={{ fontSize: 28 }}>{isEarned ? trophy.icon : '🔒'}</Text>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={[styles.modalTrophyName, { color: rc }]}>{trophy.name}</Text>
+                        <View style={[styles.rarityTag, { backgroundColor: rc + '22', borderColor: rc + '44' }]}>
+                          <Text style={[styles.rarityTagText, { color: rc }]}>{trophy.rarity.toUpperCase()}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.modalTrophyDesc}>
+                        {isEarned ? trophy.displayDesc : trophy.description}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
           {section === 'motto' && (
             <View style={styles.mottoSection}>
               <Text style={styles.mottoLabel}>DOJO NAME</Text>
@@ -268,7 +319,82 @@ export default function DojoScreen() {
         <MenuTile icon="🔮" label="EMBLEM"   sub={dojo.emblem}    color="#b44aff" onPress={() => setSection('emblem')}   />
         <MenuTile icon="🎵" label="MUSIC"    sub={music.label}    color="#4a9eff" onPress={() => setSection('music')}    />
         <MenuTile icon="✏️" label="NAME & MOTTO" sub={dojo.motto.slice(0, 20) + (dojo.motto.length > 20 ? '…' : '')} color="#aaa" onPress={() => setSection('motto')} />
+        <MenuTile icon="🏆" label="TROPHY SHELF" sub={`${dojo.trophyShelf.filter(Boolean).length}/9 displayed`} color="#ffd700" onPress={() => setSection('trophies')} />
       </View>
+
+      {/* ── TROPHY CABINET PREVIEW ──────────────────────────────────────────── */}
+      <Text style={styles.customizeLabel}>TROPHY CABINET</Text>
+      <View style={styles.shelfContainer}>
+        <View style={styles.shelfRow}>
+          {(dojo.trophyShelf ?? Array(9).fill(null)).map((tid, i) => {
+            const trophy = tid ? TROPHIES.find((t) => t.id === tid) : null;
+            const rc = trophy ? TROPHY_RARITY_COLORS[trophy.rarity] : '#2a2a3a';
+            return (
+              <TouchableOpacity
+                key={i}
+                style={[styles.shelfSlot, trophy && { borderColor: rc + '88', backgroundColor: rc + '11' }]}
+                onPress={() => setShelfSlotPicker(i)}
+              >
+                {trophy ? (
+                  <>
+                    <Text style={{ fontSize: 20 }}>{trophy.icon}</Text>
+                    <Text style={[styles.shelfTrophyName, { color: rc }]} numberOfLines={1}>{trophy.name}</Text>
+                  </>
+                ) : (
+                  <Text style={styles.emptySlotText}>+</Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        {earnedTrophyObjects.length === 0 && (
+          <Text style={styles.noTrophiesText}>Win fights to earn trophies. Display them here.</Text>
+        )}
+      </View>
+
+      {/* Slot picker modal */}
+      <Modal visible={shelfSlotPicker !== null} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>SELECT TROPHY FOR SLOT {(shelfSlotPicker ?? 0) + 1}</Text>
+            <ScrollView>
+              <TouchableOpacity style={styles.modalClearBtn} onPress={() => setShelfSlot(shelfSlotPicker!, null)}>
+                <Text style={styles.modalClearText}>REMOVE / EMPTY SLOT</Text>
+              </TouchableOpacity>
+              {earnedTrophyObjects.length === 0 ? (
+                <Text style={[styles.noTrophiesText, { margin: 16 }]}>No trophies earned yet. Win fights!</Text>
+              ) : (
+                earnedTrophyObjects.map((trophy) => {
+                  const rc = TROPHY_RARITY_COLORS[trophy.rarity];
+                  const alreadyDisplayed = dojo.trophyShelf.includes(trophy.id);
+                  return (
+                    <TouchableOpacity
+                      key={trophy.id}
+                      style={[styles.modalTrophyRow, alreadyDisplayed && { opacity: 0.5 }]}
+                      onPress={() => setShelfSlot(shelfSlotPicker!, trophy.id)}
+                    >
+                      <Text style={{ fontSize: 28 }}>{trophy.icon}</Text>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={[styles.modalTrophyName, { color: rc }]}>{trophy.name}</Text>
+                          <View style={[styles.rarityTag, { backgroundColor: rc + '22', borderColor: rc + '44' }]}>
+                            <Text style={[styles.rarityTagText, { color: rc }]}>{trophy.rarity.toUpperCase()}</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.modalTrophyDesc}>{trophy.displayDesc}</Text>
+                        {alreadyDisplayed && <Text style={styles.alreadyPlaced}>Already on shelf</Text>}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+            <TouchableOpacity style={styles.modalClose} onPress={() => setShelfSlotPicker(null)}>
+              <Text style={styles.modalCloseText}>CANCEL</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Dojo stats */}
       <View style={styles.dojoStats}>
@@ -373,4 +499,30 @@ const styles = StyleSheet.create({
   mottoInput: { backgroundColor: '#12121a', borderRadius: 12, borderWidth: 1, borderColor: '#2a2a3a', color: '#fff', fontSize: 15, padding: 14, marginBottom: 4 },
   saveBtn: { backgroundColor: '#e8c84a', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 16 },
   saveBtnText: { color: '#000', fontWeight: '900', fontSize: 15, letterSpacing: 2 },
+  // Trophy shelf
+  shelfContainer: { marginBottom: 20 },
+  shelfRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  shelfSlot: {
+    width: '30.5%', aspectRatio: 1, backgroundColor: '#12121a', borderRadius: 14,
+    borderWidth: 1, borderColor: '#2a2a3a', alignItems: 'center', justifyContent: 'center',
+    borderStyle: 'dashed',
+  },
+  shelfTrophyName: { fontSize: 7, fontWeight: '800', letterSpacing: 0.5, marginTop: 4, textAlign: 'center', paddingHorizontal: 4 },
+  emptySlotText: { color: '#2a2a3a', fontSize: 24, fontWeight: '200' },
+  noTrophiesText: { color: '#333', fontSize: 10, fontStyle: 'italic', textAlign: 'center', marginTop: 8 },
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: '#000000cc', justifyContent: 'flex-end' },
+  modalSheet: { backgroundColor: '#0e0e18', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%', paddingTop: 20 },
+  modalTitle: { color: '#e8c84a', fontSize: 13, fontWeight: '900', letterSpacing: 2, textAlign: 'center', marginBottom: 16, paddingHorizontal: 20 },
+  modalClearBtn: { marginHorizontal: 16, marginBottom: 8, backgroundColor: '#1e1e2e', borderRadius: 10, padding: 12, alignItems: 'center' },
+  modalClearText: { color: '#555', fontWeight: '700', fontSize: 12, letterSpacing: 1 },
+  modalTrophyRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#1a1a28' },
+  modalTrophyName: { fontSize: 13, fontWeight: '800' },
+  modalTrophyDesc: { color: '#555', fontSize: 10, marginTop: 2 },
+  alreadyPlaced: { color: '#4a9eff', fontSize: 9, marginTop: 2 },
+  modalClose: { margin: 16, backgroundColor: '#1e1e2e', borderRadius: 12, padding: 16, alignItems: 'center' },
+  modalCloseText: { color: '#888', fontWeight: '700', fontSize: 13 },
+  rarityTag: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
+  rarityTagText: { fontSize: 7, fontWeight: '900', letterSpacing: 1 },
+  trophyListRow: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: '#1a1a28', width: '100%' },
 });
